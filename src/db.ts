@@ -20,9 +20,21 @@ export type DbGroup = {
   isGroup: 1;
 };
 
+export type ResearchRunRecord = {
+  id?: number;
+  situationKey: string;
+  flopKey: string;
+  presetId: string;
+  presetLabel: string;
+  boardText: string;
+  updatedAt: number;
+  value: unknown;
+};
+
 class WASMPostflopDB extends Dexie {
   public ranges!: Table<DbItem | DbGroup, number>;
   public configurations!: Table<DbItem | DbGroup, number>;
+  public researchRuns!: Table<ResearchRunRecord, number>;
 
   public constructor() {
     super("WASMPostflopDB");
@@ -47,6 +59,12 @@ class WASMPostflopDB extends Dexie {
             }
           });
       });
+
+    this.version(3).stores({
+      ranges: "++id, [name0+name1+name2+name3+isGroup]",
+      configurations: "++id, [name0+name1+name2+name3+isGroup]",
+      researchRuns: "++id, [situationKey+flopKey], situationKey, presetId, updatedAt",
+    });
   }
 }
 
@@ -278,6 +296,44 @@ export const bulkAdd = async (store: string, items: (DbItem | DbGroup)[]) => {
 
       return true;
     });
+  } catch {
+    return false;
+  }
+};
+
+export const getResearchRuns = async (situationKey: string) => {
+  return (await db.researchRuns
+    .where("situationKey")
+    .equals(situationKey)
+    .sortBy("updatedAt")) as ResearchRunRecord[];
+};
+
+export const putResearchRun = async (record: ResearchRunRecord) => {
+  try {
+    return await db.transaction("rw", db.researchRuns, async () => {
+      const existing = await db.researchRuns
+        .where("[situationKey+flopKey]")
+        .equals([record.situationKey, record.flopKey])
+        .first();
+
+      if (existing?.id != null) {
+        await db.researchRuns.update(existing.id, record);
+      } else {
+        await db.researchRuns.add(record);
+      }
+
+      return true;
+    });
+  } catch {
+    return false;
+  }
+};
+
+export const deleteResearchRuns = async (situationKey: string) => {
+  try {
+    return (
+      (await db.researchRuns.where("situationKey").equals(situationKey).delete()) >= 0
+    );
   } catch {
     return false;
   }

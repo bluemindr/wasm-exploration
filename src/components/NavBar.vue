@@ -39,6 +39,17 @@
           :class="
             'flex relative w-32 items-center justify-center font-semibold ' +
             'transition-colors hover:bg-slate-700 hover:text-blue-200 ' +
+            (store.navView === 'research' ? 'bg-slate-700 text-blue-200' : '')
+          "
+          @click="store.navView = 'research'"
+        >
+          <BeakerIcon class="w-6 h-6" />
+          <span class="pl-3">Research</span>
+        </button>
+        <button
+          :class="
+            'flex relative w-32 items-center justify-center font-semibold ' +
+            'transition-colors hover:bg-slate-700 hover:text-blue-200 ' +
             (store.navView === 'results' ? 'bg-slate-700 text-blue-200' : '')
           "
           @click="store.navView = 'results'"
@@ -55,10 +66,15 @@
 import { defineComponent } from "vue";
 import { useStore } from "../store";
 
-import { ComputerDesktopIcon, ChartBarIcon } from "@heroicons/vue/24/solid";
+import {
+  BeakerIcon,
+  ChartBarIcon,
+  ComputerDesktopIcon,
+} from "@heroicons/vue/24/solid";
 
 export default defineComponent({
   components: {
+    BeakerIcon,
     ComputerDesktopIcon,
     ChartBarIcon,
   },

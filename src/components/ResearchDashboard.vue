@@ -1,0 +1,830 @@
+<template>
+  <div class="min-h-full bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.14),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(251,191,36,0.18),_transparent_30%),linear-gradient(180deg,_#f8fafc_0%,_#eef2ff_100%)]">
+    <div class="mx-auto max-w-screen-xl px-6 py-6">
+      <section class="rounded-3xl border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur">
+        <div class="flex flex-wrap items-start justify-between gap-6">
+          <div class="max-w-3xl">
+            <div class="text-xs font-semibold uppercase tracking-[0.28em] text-sky-700">
+              Multi-Flop Research
+            </div>
+            <h1 class="mt-2 text-4xl font-black tracking-tight text-slate-900">
+              Batch solver + heuristics dashboard
+            </h1>
+            <p class="mt-3 max-w-2xl text-sm text-slate-600">
+              Lance une étude sur un sous-ensemble représentatif de flops, avec
+              overbet 2x pot activé sur les boards les plus favorables comme
+              AK3r et K83r, puis exporte un prompt détaillé pour demander à un
+              LLM d'en déduire des heuristiques exploitables humainement.
+            </p>
+          </div>
+
+          <div class="grid min-w-[17rem] gap-3 rounded-2xl border border-slate-200 bg-slate-950 px-5 py-4 text-slate-50 shadow-xl">
+            <div class="text-xs uppercase tracking-[0.22em] text-sky-300">
+              Current research rules
+            </div>
+            <div class="text-sm leading-6 text-slate-200">
+              Flop base: 33%, 50%
+              <br />
+              Flop overbet: 200% only on AK3r / K83r archetypes
+              <br />
+              Turn: 50%, 100%
+              <br />
+              River: 50%
+              <br />
+              Raises: 70% or all-in
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div class="flex items-center justify-between gap-4">
+            <div>
+              <h2 class="text-xl font-bold text-slate-900">Typical presets</h2>
+              <p class="mt-1 text-sm text-slate-600">
+                Charge une base standard, puis affine les ranges via l'éditeur
+                natif de l'application si besoin.
+              </p>
+            </div>
+            <button class="button-base button-blue" @click="loadSelectedPreset">
+              Load In Solver
+            </button>
+          </div>
+
+          <div class="mt-5 grid gap-4 lg:grid-cols-2">
+            <button
+              v-for="preset in presets"
+              :key="preset.id"
+              :class="presetCardClass(preset.id)"
+              @click="selectedPresetId = preset.id"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <div class="text-left text-lg font-bold text-slate-900">
+                    {{ preset.label }}
+                  </div>
+                  <div class="mt-1 text-left text-sm text-slate-600">
+                    {{ preset.summary }}
+                  </div>
+                </div>
+                <div
+                  class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em]"
+                  :class="
+                    preset.id === selectedPresetId
+                      ? 'bg-sky-900 text-sky-100'
+                      : 'bg-slate-100 text-slate-500'
+                  "
+                >
+                  {{ preset.rakePercent }}% rake
+                </div>
+              </div>
+              <div class="mt-4 grid grid-cols-3 gap-3 text-left text-sm text-slate-700">
+                <div>
+                  <div class="text-xs uppercase tracking-[0.2em] text-slate-400">
+                    Pot
+                  </div>
+                  <div class="mt-1 font-semibold">{{ preset.startingPot }}</div>
+                </div>
+                <div>
+                  <div class="text-xs uppercase tracking-[0.2em] text-slate-400">
+                    Stack
+                  </div>
+                  <div class="mt-1 font-semibold">{{ preset.effectiveStack }}</div>
+                </div>
+                <div>
+                  <div class="text-xs uppercase tracking-[0.2em] text-slate-400">
+                    Turn sizes
+                  </div>
+                  <div class="mt-1 font-semibold">{{ preset.ipTurnBet }}</div>
+                </div>
+              </div>
+              <div class="mt-4 text-left text-sm text-slate-500">
+                {{ preset.note }}
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 class="text-xl font-bold text-slate-900">Run controls</h2>
+          <p class="mt-1 text-sm text-slate-600">
+            La recherche se base sur la config actuellement chargée dans
+            l'éditeur solver.
+          </p>
+
+          <div class="mt-5 grid gap-4 sm:grid-cols-2">
+            <label class="text-sm font-semibold text-slate-700">
+              Threads
+              <input
+                v-model="numThreads"
+                type="number"
+                min="1"
+                max="64"
+                class="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              />
+            </label>
+            <label class="text-sm font-semibold text-slate-700">
+              Target exploitability %
+              <input
+                v-model="targetExploitability"
+                type="number"
+                min="0.05"
+                step="0.05"
+                class="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              />
+            </label>
+            <label class="text-sm font-semibold text-slate-700">
+              Max iterations
+              <input
+                v-model="maxIterations"
+                type="number"
+                min="1"
+                class="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              />
+            </label>
+            <label class="text-sm font-semibold text-slate-700">
+              Tree preview depth
+              <input
+                v-model="treeDepth"
+                type="number"
+                min="1"
+                max="3"
+                class="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              />
+            </label>
+          </div>
+
+          <label class="mt-5 block text-sm font-semibold text-slate-700">
+            Custom flops
+            <textarea
+              v-model="customBoardsText"
+              rows="4"
+              class="mt-1.5 w-full rounded-2xl border border-slate-300 px-3 py-2 text-sm"
+              placeholder="One flop per line, e.g.&#10;AcKd3h&#10;Kh8d3c"
+            ></textarea>
+          </label>
+
+          <div v-if="invalidCustomBoards.length > 0" class="mt-2 text-sm font-semibold text-red-600">
+            Invalid custom flops: {{ invalidCustomBoards.join(", ") }}
+          </div>
+
+          <label class="mt-5 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700">
+            <input v-model="forceRecalculate" type="checkbox" class="rounded" />
+            Force Recalculate
+            <span class="font-normal text-slate-500">
+              Ignore le cache persistant de cette situation et relance tous les flops.
+            </span>
+          </label>
+
+          <div class="mt-5 flex flex-wrap gap-3">
+            <button
+              class="button-base button-blue"
+              :disabled="isRunning || invalidCustomBoards.length > 0"
+              @click="runResearch"
+            >
+              Run Batch Research
+            </button>
+            <button class="button-base button-green" @click="selectAllFlops">
+              Select All
+            </button>
+            <button class="button-base button-red" @click="clearResults">
+              Clear Results
+            </button>
+          </div>
+
+          <div class="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <div class="font-semibold text-slate-900">{{ progressTitle }}</div>
+            <div class="mt-1">{{ progressText }}</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-bold text-slate-900">Representative flops</h2>
+            <p class="mt-1 text-sm text-slate-600">
+              Sélectionne le noyau d'étude. Les poids servent à agréger les
+              résultats et à donner plus d'importance aux textures fréquentes.
+            </p>
+          </div>
+          <div class="text-sm font-semibold text-slate-500">
+            {{ selectedFlopIds.length }} selected
+          </div>
+        </div>
+
+        <div class="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <label
+            v-for="flop in flops"
+            :key="flop.id"
+            class="group flex cursor-pointer gap-3 rounded-2xl border px-4 py-4 transition-colors"
+            :class="
+              selectedFlopIds.includes(flop.id)
+                ? 'border-sky-300 bg-sky-50'
+                : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+            "
+          >
+            <input
+              :checked="selectedFlopIds.includes(flop.id)"
+              type="checkbox"
+              class="mt-1 rounded"
+              @change="toggleFlop(flop.id)"
+            />
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center justify-between gap-2">
+                <div class="text-lg font-black tracking-wide text-slate-900">
+                  {{ flop.label }}
+                </div>
+                <div class="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white">
+                  w {{ flop.weight }}
+                </div>
+              </div>
+              <div class="mt-1 text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">
+                {{ flop.category }}
+              </div>
+              <div class="mt-2 text-sm text-slate-600">
+                {{ flop.note }}
+              </div>
+              <div v-if="flop.flopBetOverride" class="mt-3 text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
+                Flop override {{ flop.flopBetOverride }}
+              </div>
+            </div>
+          </label>
+        </div>
+      </section>
+
+      <section v-if="results.length > 0" class="mt-6 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 class="text-xl font-bold text-slate-900">Aggregate action mix</h2>
+          <p class="mt-1 text-sm text-slate-600">
+            Fréquences moyennes pondérées sur les flops résolus avec succès.
+          </p>
+
+          <div class="mt-5 space-y-4">
+            <div
+              v-for="item in aggregateActions"
+              :key="item.label"
+              class="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+            >
+              <div class="flex items-center justify-between gap-4">
+                <div>
+                  <div class="text-lg font-bold text-slate-900">{{ item.label }}</div>
+                  <div class="text-sm text-slate-500">{{ item.count }} flops</div>
+                </div>
+                <div class="text-right">
+                  <div class="text-2xl font-black text-slate-900">
+                    {{ formatPercent(item.frequency) }}
+                  </div>
+                  <div class="text-sm text-slate-500">
+                    avg EV {{ formatAdaptive(item.ev) }}
+                  </div>
+                </div>
+              </div>
+              <div class="mt-3 h-3 rounded-full bg-slate-200">
+                <div
+                  class="h-3 rounded-full bg-[linear-gradient(90deg,_#0f172a_0%,_#0ea5e9_100%)]"
+                  :style="{ width: `${Math.max(2, item.frequency * 100)}%` }"
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div class="flex items-center justify-between gap-4">
+            <div>
+              <h2 class="text-xl font-bold text-slate-900">LLM export</h2>
+              <p class="mt-1 text-sm text-slate-600">
+                Prompt prêt à coller dans un LLM pour demander des heuristiques
+                précises et actionnables.
+              </p>
+            </div>
+            <button class="button-base button-blue" @click="copyLlmPrompt">
+              Copy Prompt
+            </button>
+          </div>
+
+          <textarea
+            :value="llmPrompt"
+            rows="24"
+            readonly
+            class="mt-5 w-full rounded-2xl border border-slate-300 bg-slate-950 px-4 py-4 font-mono text-xs leading-6 text-slate-100"
+          ></textarea>
+        </div>
+      </section>
+
+      <section v-if="results.length > 0" class="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 class="text-xl font-bold text-slate-900">Solved flops</h2>
+        <p class="mt-1 text-sm text-slate-600">
+          Synthèse flop par flop avec exploitability, action root et métriques
+          globales.
+        </p>
+
+        <div class="mt-5 space-y-4">
+          <div
+            v-for="result in results"
+            :key="result.key"
+            class="rounded-3xl border px-5 py-5"
+            :class="result.error ? 'border-red-200 bg-red-50' : 'border-slate-200 bg-white'"
+          >
+            <div class="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <div class="flex items-center gap-3">
+                  <div class="text-3xl font-black tracking-wide text-slate-900">
+                    {{ result.flop.label }}
+                  </div>
+                  <div class="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white">
+                    {{ result.flop.category }}
+                  </div>
+                </div>
+                <div class="mt-2 text-sm text-slate-600">
+                  {{ result.flop.note }}
+                </div>
+              </div>
+
+              <div class="grid min-w-[18rem] grid-cols-2 gap-3 text-sm">
+                <div class="rounded-2xl bg-slate-50 px-4 py-3">
+                  <div class="text-xs uppercase tracking-[0.18em] text-slate-400">Exploitability</div>
+                  <div class="mt-1 text-lg font-bold text-slate-900">
+                    {{ result.error ? '-' : formatAdaptive(result.outcome!.exploitability) }}
+                  </div>
+                </div>
+                <div class="rounded-2xl bg-slate-50 px-4 py-3">
+                  <div class="text-xs uppercase tracking-[0.18em] text-slate-400">Time</div>
+                  <div class="mt-1 text-lg font-bold text-slate-900">
+                    {{ result.error ? '-' : formatMs(result.outcome!.elapsedTimeMs) }}
+                  </div>
+                </div>
+                <div class="rounded-2xl bg-slate-50 px-4 py-3">
+                  <div class="text-xs uppercase tracking-[0.18em] text-slate-400">Equity OOP</div>
+                  <div class="mt-1 text-lg font-bold text-slate-900">
+                    {{ result.error ? '-' : formatPercent(result.outcome!.rootSummary.equity[0]) }}
+                  </div>
+                </div>
+                <div class="rounded-2xl bg-slate-50 px-4 py-3">
+                  <div class="text-xs uppercase tracking-[0.18em] text-slate-400">EV OOP</div>
+                  <div class="mt-1 text-lg font-bold text-slate-900">
+                    {{ result.error ? '-' : formatAdaptive(result.outcome!.rootSummary.ev[0]) }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="result.error" class="mt-4 rounded-2xl bg-red-100 px-4 py-3 text-sm font-semibold text-red-700">
+              {{ result.error }}
+            </div>
+
+            <div v-else class="mt-5 grid gap-3 lg:grid-cols-3">
+              <div
+                v-for="action in result.outcome!.rootSummary.actions"
+                :key="action.label"
+                class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4"
+              >
+                <div class="flex items-start justify-between gap-3">
+                  <div>
+                    <div class="text-base font-bold text-slate-900">
+                      {{ action.label }}
+                    </div>
+                    <div class="text-sm text-slate-500">
+                      EV {{ action.ev === null ? '-' : formatAdaptive(action.ev) }}
+                    </div>
+                  </div>
+                  <div class="text-right text-2xl font-black text-slate-900">
+                    {{ formatPercent(action.frequency) }}
+                  </div>
+                </div>
+                <div class="mt-3 h-2.5 rounded-full bg-slate-200">
+                  <div
+                    class="h-2.5 rounded-full bg-[linear-gradient(90deg,_#1d4ed8_0%,_#38bdf8_100%)]"
+                    :style="{ width: `${Math.max(2, action.frequency * 100)}%` }"
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</template>
+
+<script lang="ts">
+import { computed, defineComponent, ref } from "vue";
+import { useConfigStore, useStore } from "../store";
+import { getResearchRuns, putResearchRun, type ResearchRunRecord } from "../db";
+import {
+  applyResearchPreset,
+  parseStudyBoard,
+  representativeFlops,
+  researchPresets,
+  type FlopStudyItem,
+  type ResearchPresetId,
+} from "../lib/research-presets";
+import {
+  computeFlopKey,
+  computeSituationKey,
+  captureConfigSnapshot,
+  runBatchSolve,
+  type FlopTreeOverrides,
+  type SolveOutcome,
+  type RootActionSummary,
+} from "../lib/research-solver";
+import { checkConfig } from "../lib/solver-config";
+import { toFixedAdaptive } from "../utils";
+
+type BatchResult = {
+  key: string;
+  flop: FlopStudyItem;
+  board: number[];
+  outcome: SolveOutcome | null;
+  error: string | null;
+};
+
+type PersistedBatchValue = {
+  flop: FlopStudyItem;
+  board: number[];
+  outcome: SolveOutcome | null;
+  error: string | null;
+};
+
+type AggregateAction = {
+  label: string;
+  frequency: number;
+  ev: number;
+  count: number;
+};
+
+const formatPercent = (value: number) => {
+  if (!isFinite(value)) return "-";
+  return `${(value * 100).toFixed(1)}%`;
+};
+
+const formatAdaptive = (value: number) => {
+  if (!isFinite(value)) return "-";
+  return toFixedAdaptive(value);
+};
+
+const formatMs = (value: number) => `${(value / 1000).toFixed(2)}s`;
+
+export default defineComponent({
+  setup() {
+    const appStore = useStore();
+    const config = useConfigStore();
+
+    const presets = researchPresets;
+    const flops = representativeFlops;
+
+    const selectedPresetId = ref<ResearchPresetId>(presets[0].id);
+    const selectedFlopIds = ref(flops.map((flop) => flop.id));
+    const customBoardsText = ref("");
+    const numThreads = ref(Math.max(1, navigator.hardwareConcurrency || 1));
+    const targetExploitability = ref(0.3);
+    const maxIterations = ref(1000);
+    const treeDepth = ref(2);
+    const forceRecalculate = ref(false);
+    const isRunning = ref(false);
+    const statusText = ref(
+      "Charge un preset, ajuste les ranges si nécessaire, puis lance la batch research."
+    );
+    const results = ref<BatchResult[]>([]);
+
+    const selectedPreset = computed(
+      () => presets.find((preset) => preset.id === selectedPresetId.value) || presets[0]
+    );
+
+    const customFlops = computed<FlopStudyItem[]>(() => {
+      return customBoardsText.value
+        .split(/\n+/)
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .map((boardText, index) => {
+          const board = parseStudyBoard(boardText);
+          return {
+            id: `custom-${index}-${boardText}`,
+            boardText,
+            label: boardText.replace(/\s+/g, ""),
+            category: "Custom",
+            weight: 0.5,
+            note: "Custom board added manually for this batch.",
+            flopBetOverride: undefined,
+            _board: board,
+          } as FlopStudyItem & { _board: number[] };
+        });
+    });
+
+    const invalidCustomBoards = computed(() => {
+      return customFlops.value
+        .filter((item) => item._board.length !== 3)
+        .map((item) => item.boardText);
+    });
+
+    const activeFlops = computed<FlopStudyItem[]>(() => {
+      const base = flops.filter((flop) => selectedFlopIds.value.includes(flop.id));
+      const custom = customFlops.value.filter((flop) => flop._board.length === 3);
+      return [...base, ...custom];
+    });
+
+    const aggregateActions = computed<AggregateAction[]>(() => {
+      const map = new Map<string, { weightedFrequency: number; weightedEv: number; totalWeight: number; count: number }>();
+
+      for (const result of results.value) {
+        if (!result.outcome) continue;
+
+        for (const action of result.outcome.rootSummary.actions) {
+          const current = map.get(action.label) || {
+            weightedFrequency: 0,
+            weightedEv: 0,
+            totalWeight: 0,
+            count: 0,
+          };
+          current.weightedFrequency += action.frequency * result.flop.weight;
+          current.weightedEv += (action.ev ?? 0) * result.flop.weight;
+          current.totalWeight += result.flop.weight;
+          current.count += 1;
+          map.set(action.label, current);
+        }
+      }
+
+      return Array.from(map.entries())
+        .map(([label, value]) => ({
+          label,
+          frequency: value.totalWeight > 0 ? value.weightedFrequency / value.totalWeight : 0,
+          ev: value.totalWeight > 0 ? value.weightedEv / value.totalWeight : Number.NaN,
+          count: value.count,
+        }))
+        .sort((left, right) => right.frequency - left.frequency);
+    });
+
+    const llmPrompt = computed(() => {
+      const payload = {
+        preset: selectedPreset.value.label,
+        config: {
+          startingPot: config.startingPot,
+          effectiveStack: config.effectiveStack,
+          rakePercent: config.rakePercent,
+          rakeCap: config.rakeCap,
+          oopFlopBet: config.oopFlopBet,
+          ipFlopBet: config.ipFlopBet,
+          oopTurnBet: config.oopTurnBet,
+          ipTurnBet: config.ipTurnBet,
+          oopRiverBet: config.oopRiverBet,
+          ipRiverBet: config.ipRiverBet,
+          oopFlopRaise: config.oopFlopRaise,
+          ipFlopRaise: config.ipFlopRaise,
+          oopTurnRaise: config.oopTurnRaise,
+          ipTurnRaise: config.ipTurnRaise,
+          oopRiverRaise: config.oopRiverRaise,
+          ipRiverRaise: config.ipRiverRaise,
+          addAllInThreshold: config.addAllInThreshold,
+          forceAllInThreshold: config.forceAllInThreshold,
+          mergingThreshold: config.mergingThreshold,
+        },
+        aggregateActions: aggregateActions.value,
+        flops: results.value.map((result) => ({
+          board: result.flop.boardText,
+          category: result.flop.category,
+          weight: result.flop.weight,
+          note: result.flop.note,
+          flopBetOverride: result.flop.flopBetOverride || null,
+          error: result.error,
+          outcome: result.outcome
+            ? {
+                exploitability: result.outcome.exploitability,
+                elapsedTimeMs: result.outcome.elapsedTimeMs,
+                currentIteration: result.outcome.currentIteration,
+                rootSummary: result.outcome.rootSummary,
+              }
+            : null,
+        })),
+      };
+
+      return [
+        "Tu es un coach GTO pragmatique.",
+        "Analyse l'ensemble des flops ci-dessous et extrais des heuristiques assez précises pour être utilisables par un humain en jeu.",
+        "Je veux des règles concrètes, avec conditions de texture, sizings préférés, exceptions importantes et pièges à éviter.",
+        "Concentre-toi sur les décisions au flop puis sur les simplifications turn.",
+        "Quand tu proposes une heuristique, appuie-la sur plusieurs flops du dataset et signale les contre-exemples.",
+        "Format attendu:",
+        "1. Heuristiques flop par familles de boards",
+        "2. Heuristiques turn générales",
+        "3. Cas où l'overbet flop 2x pot devient crédible",
+        "4. Cas où il faut éviter de trop simplifier",
+        "5. Résumé exécutable en jeu en 10 points maximum",
+        "Dataset JSON:",
+        JSON.stringify(payload, null, 2),
+      ].join("\n\n");
+    });
+
+    const progressTitle = computed(() => (isRunning.value ? "Batch running" : "Ready"));
+    const progressText = computed(() => statusText.value);
+
+    const loadSelectedPreset = () => {
+      applyResearchPreset(config, selectedPreset.value);
+      appStore.navView = "solver";
+      appStore.sideView = "oop-range";
+    };
+
+    const presetCardClass = (presetId: ResearchPresetId) => {
+      return (
+        "rounded-3xl border p-5 text-left transition-all " +
+        (presetId === selectedPresetId.value
+          ? "border-sky-300 bg-[linear-gradient(135deg,_rgba(14,165,233,0.09),_rgba(15,23,42,0.03))] shadow-md"
+          : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm")
+      );
+    };
+
+    const toggleFlop = (flopId: string) => {
+      if (selectedFlopIds.value.includes(flopId)) {
+        selectedFlopIds.value = selectedFlopIds.value.filter((item) => item !== flopId);
+      } else {
+        selectedFlopIds.value = [...selectedFlopIds.value, flopId];
+      }
+    };
+
+    const selectAllFlops = () => {
+      selectedFlopIds.value = flops.map((flop) => flop.id);
+    };
+
+    const clearResults = () => {
+      results.value = [];
+      statusText.value = "Results cleared.";
+    };
+
+    const upsertResult = (result: BatchResult) => {
+      const index = results.value.findIndex((item) => item.key === result.key);
+      if (index === -1) {
+        results.value = [...results.value, result];
+        return;
+      }
+
+      const next = [...results.value];
+      next[index] = result;
+      results.value = next;
+    };
+
+    const getSituationKey = () =>
+      computeSituationKey(config, selectedPresetId.value, {
+        targetExploitabilityPercent: targetExploitability.value,
+        maxIterations: maxIterations.value,
+        treeDepth: treeDepth.value,
+      });
+
+    const copyLlmPrompt = async () => {
+      await navigator.clipboard.writeText(llmPrompt.value);
+      statusText.value = "LLM prompt copied to clipboard.";
+    };
+
+    const normalizeActions = (actions: RootActionSummary[]) => {
+      return actions.sort((left, right) => right.frequency - left.frequency);
+    };
+
+    const runResearch = async () => {
+      const configError = checkConfig(config);
+      if (configError) {
+        statusText.value = `Current solver config is invalid: ${configError}`;
+        return;
+      }
+
+      if (activeFlops.value.length === 0) {
+        statusText.value = "Select at least one representative flop.";
+        return;
+      }
+
+      isRunning.value = true;
+      results.value = [];
+
+      const situationKey = getSituationKey();
+      const cachedRuns = forceRecalculate.value
+        ? []
+        : await getResearchRuns(situationKey);
+      const cachedMap = new Map<string, ResearchRunRecord>(
+        cachedRuns.map((record) => [record.flopKey, record])
+      );
+
+      for (const [index, flop] of activeFlops.value.entries()) {
+        const board = "_board" in flop ? flop._board : parseStudyBoard(flop.boardText);
+        const treeOverrides: FlopTreeOverrides | undefined = flop.flopBetOverride
+          ? {
+              oopFlopBet: flop.flopBetOverride,
+              ipFlopBet: flop.flopBetOverride,
+            }
+          : undefined;
+        const flopKey = computeFlopKey(flop.boardText, treeOverrides);
+        const resultKey = `${situationKey}-${flopKey}`;
+
+        if (cachedMap.has(flopKey)) {
+          const cachedValue = cachedMap.get(flopKey)?.value as PersistedBatchValue;
+          upsertResult({
+            key: resultKey,
+            flop: cachedValue.flop,
+            board: cachedValue.board,
+            outcome: cachedValue.outcome,
+            error: cachedValue.error,
+          });
+          statusText.value = `CACHE ${index + 1}/${activeFlops.value.length} ${flop.label}`;
+          continue;
+        }
+
+        const snapshot = captureConfigSnapshot(config, board, treeOverrides);
+
+        try {
+          const outcome = await runBatchSolve(snapshot, {
+            numThreads: numThreads.value,
+            targetExploitabilityPercent: targetExploitability.value,
+            maxIterations: maxIterations.value,
+            treeDepth: treeDepth.value,
+            flopIndex: index + 1,
+            flopCount: activeFlops.value.length,
+            flopLabel: flop.label,
+            onProgress: (progress) => {
+              statusText.value = `${progress.stage.toUpperCase()} ${progress.flopIndex}/${progress.flopCount} ${progress.flopLabel} | iteration ${progress.currentIteration}/${progress.maxIterations} | exploitability ${formatAdaptive(progress.exploitability)}`;
+            },
+          });
+
+          outcome.rootSummary.actions = normalizeActions(outcome.rootSummary.actions);
+          const batchResult = {
+            key: resultKey,
+            flop,
+            board,
+            outcome,
+            error: null,
+          };
+          upsertResult(batchResult);
+          await putResearchRun({
+            situationKey,
+            flopKey,
+            presetId: selectedPreset.value.id,
+            presetLabel: selectedPreset.value.label,
+            boardText: flop.boardText,
+            updatedAt: Date.now(),
+            value: {
+              flop,
+              board,
+              outcome,
+              error: null,
+            } satisfies PersistedBatchValue,
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          const batchResult = {
+            key: resultKey,
+            flop,
+            board,
+            outcome: null,
+            error: message,
+          };
+          upsertResult(batchResult);
+          await putResearchRun({
+            situationKey,
+            flopKey,
+            presetId: selectedPreset.value.id,
+            presetLabel: selectedPreset.value.label,
+            boardText: flop.boardText,
+            updatedAt: Date.now(),
+            value: {
+              flop,
+              board,
+              outcome: null,
+              error: message,
+            } satisfies PersistedBatchValue,
+          });
+        }
+      }
+
+      isRunning.value = false;
+      statusText.value = `Batch finished on ${activeFlops.value.length} flops.`;
+    };
+
+    return {
+      presets,
+      flops,
+      selectedPresetId,
+      selectedFlopIds,
+      customBoardsText,
+      numThreads,
+      targetExploitability,
+      maxIterations,
+      treeDepth,
+      forceRecalculate,
+      isRunning,
+      results,
+      aggregateActions,
+      invalidCustomBoards,
+      llmPrompt,
+      progressTitle,
+      progressText,
+      formatAdaptive,
+      formatPercent,
+      formatMs,
+      loadSelectedPreset,
+      presetCardClass,
+      toggleFlop,
+      selectAllFlops,
+      clearResults,
+      copyLlmPrompt,
+      runResearch,
+    };
+  },
+});
+</script>

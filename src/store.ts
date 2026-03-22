@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { sanitizeBetString } from "./utils";
 
-export type NavView = "solver" | "results";
+export type NavView = "solver" | "research" | "results";
 
 export type SideView =
   | "about"

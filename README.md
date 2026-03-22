@@ -113,6 +113,39 @@ Either way, we cannot verify the correctness because we cannot see the overall E
 
 ## Build
 
+## Research Dashboard
+
+This fork adds a dedicated `Research` mode for studying multiple representative flops in sequence.
+
+### What it adds
+
+- Typical presets for:
+  - BTN vs BB single-raised pot
+  - BB vs BTN 3bet pot
+- Batch solving over a curated subset of representative flops
+- A dashboard summarizing root action frequencies, EVs, exploitability, and runtime per flop
+- An LLM export prompt that includes the solved flop set plus a shallow decision-tree preview
+
+### Current study defaults
+
+- Deep SRP preset: pot `65`, stack `970`, rake `5%` with cap `30`
+- 3bet preset: smaller SPR, rake `4%` with cap `20`
+- Flop bet sizes: `33%`, `50%`
+- Flop overbet `200%`: enabled only on selected favorable archetypes such as `AK3r` and `K83r`
+- Turn bet sizes: `50%`, `100%`
+- River bet sizes: `50%`
+- Raises: `70%` or all-in
+
+### Workflow
+
+1. Open `Research`
+2. Pick a preset and click `Load In Solver`
+3. Fine-tune ranges in the original solver range editor if needed
+4. Return to `Research` and run the batch on the selected flop set
+5. Copy the generated LLM prompt to ask for human-usable heuristics
+
+The preset loader deliberately reuses the original OOP/IP range editor so you keep the same matrix-style selector as on the upstream site.
+
 ```sh
 $ # prerequisites
 $ rustup install nightly

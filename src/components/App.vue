@@ -46,6 +46,14 @@
     </div>
 
     <div
+      v-show="store.navView === 'research'"
+      class="overflow-y-auto"
+      style="height: calc(100% - 2.5rem)"
+    >
+      <ResearchDashboard />
+    </div>
+
+    <div
       v-show="store.navView === 'results'"
       class="overflow-y-auto"
       style="height: calc(100% - 2.5rem)"
@@ -66,6 +74,7 @@ import RangeEditor from "./RangeEditor.vue";
 import BoardSelector from "./BoardSelector.vue";
 import TreeConfig from "./TreeConfig.vue";
 import RunSolver from "./RunSolver.vue";
+import ResearchDashboard from "./ResearchDashboard.vue";
 import ResultViewer from "./ResultViewer.vue";
 
 export default defineComponent({
@@ -77,6 +86,7 @@ export default defineComponent({
     BoardSelector,
     TreeConfig,
     RunSolver,
+    ResearchDashboard,
     ResultViewer,
   },
 
