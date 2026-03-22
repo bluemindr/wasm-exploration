@@ -152,6 +152,7 @@ $ rustup install nightly
 $ rustup +nightly component add rust-src
 $ rustup target add wasm32-unknown-unknown
 $ cargo install wasm-pack
+$ cargo install wasm-bindgen-cli --version 0.2.92
 $ npm install
 
 $ # build
@@ -164,6 +165,27 @@ $ npm run serve
 $ # lint/format
 $ npm run lint
 $ npm run format
+```
+
+### Build troubleshooting
+
+- This fork pins `wasm-bindgen` to `0.2.92` in the Rust crates. Keep the installed `wasm-bindgen-cli` on the same version.
+- Installing `wasm-bindgen-cli` explicitly avoids `wasm-pack` trying to fetch a matching binary on the fly, which is a common source of transient network failures.
+- If you hit `could not compile wasm-bindgen` after a dependency refresh, make sure the lockfiles did not drift to another `wasm-bindgen` version. Re-align them with:
+
+```sh
+$ cargo update --manifest-path rust/range/Cargo.toml -p wasm-bindgen --precise 0.2.92
+$ cargo update --manifest-path rust/tree/Cargo.toml -p wasm-bindgen --precise 0.2.92
+$ cargo update --manifest-path rust/solver-st/Cargo.toml -p wasm-bindgen --precise 0.2.92
+$ cargo update --manifest-path rust/solver-mt/Cargo.toml -p wasm-bindgen --precise 0.2.92
+```
+
+- If `npm run wasm` works but `npm run build` fails on generated worker snippets, regenerate the packages after aligning both the crate and CLI versions:
+
+```sh
+$ cargo install wasm-bindgen-cli --version 0.2.92 --force
+$ npm run wasm
+$ npm run build
 ```
 
 ## License

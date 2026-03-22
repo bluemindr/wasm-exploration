@@ -441,6 +441,12 @@ type BatchResult = {
   error: string | null;
 };
 
+type CustomFlopStudyItem = FlopStudyItem & {
+  parsedBoard: number[];
+};
+
+type ActiveFlopStudyItem = FlopStudyItem | CustomFlopStudyItem;
+
 type PersistedBatchValue = {
   flop: FlopStudyItem;
   board: number[];
@@ -493,7 +499,7 @@ export default defineComponent({
       () => presets.find((preset) => preset.id === selectedPresetId.value) || presets[0]
     );
 
-    const customFlops = computed<FlopStudyItem[]>(() => {
+    const customFlops = computed<CustomFlopStudyItem[]>(() => {
       return customBoardsText.value
         .split(/\n+/)
         .map((item) => item.trim())
@@ -508,20 +514,20 @@ export default defineComponent({
             weight: 0.5,
             note: "Custom board added manually for this batch.",
             flopBetOverride: undefined,
-            _board: board,
-          } as FlopStudyItem & { _board: number[] };
+            parsedBoard: board,
+          };
         });
     });
 
     const invalidCustomBoards = computed(() => {
       return customFlops.value
-        .filter((item) => item._board.length !== 3)
+        .filter((item) => item.parsedBoard.length !== 3)
         .map((item) => item.boardText);
     });
 
-    const activeFlops = computed<FlopStudyItem[]>(() => {
+    const activeFlops = computed<ActiveFlopStudyItem[]>(() => {
       const base = flops.filter((flop) => selectedFlopIds.value.includes(flop.id));
-      const custom = customFlops.value.filter((flop) => flop._board.length === 3);
+      const custom = customFlops.value.filter((flop) => flop.parsedBoard.length === 3);
       return [...base, ...custom];
     });
 
@@ -703,7 +709,8 @@ export default defineComponent({
       );
 
       for (const [index, flop] of activeFlops.value.entries()) {
-        const board = "_board" in flop ? flop._board : parseStudyBoard(flop.boardText);
+        const board: number[] =
+          "parsedBoard" in flop ? flop.parsedBoard : parseStudyBoard(flop.boardText);
         const treeOverrides: FlopTreeOverrides | undefined = flop.flopBetOverride
           ? {
               oopFlopBet: flop.flopBetOverride,

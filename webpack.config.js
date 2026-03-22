@@ -16,6 +16,13 @@ module.exports = {
   module: {
     rules: [
       {
+        test: /workerHelpers\.js$/,
+        include: [path.resolve(__dirname, "pkg/solver-mt/snippets")],
+        resolve: {
+          fullySpecified: false,
+        },
+      },
+      {
         test: /\.ts$/,
         loader: "ts-loader",
         options: { appendTsSuffixTo: [/\.vue$/] },
