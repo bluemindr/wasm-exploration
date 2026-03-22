@@ -485,6 +485,13 @@ const summarizeRoot = async (
     });
   }
 
+  let treePreview: DecisionTreeNode | null = null;
+  try {
+    treePreview = await buildDecisionPreview(treeDepth);
+  } catch {
+    treePreview = null;
+  }
+
   return {
     currentPlayer: parsed.currentPlayer,
     combos,
@@ -493,7 +500,7 @@ const summarizeRoot = async (
     eqr,
     actions,
     boardText: boardToText(board).join(" "),
-    treePreview: await buildDecisionPreview(treeDepth),
+    treePreview,
   };
 };
 
@@ -522,19 +529,10 @@ const buildDecisionPreview = async (
   }
 
   if (currentPlayer === "chance") {
-    const nextActionsText = await solver.actionsAfter(Uint32Array.from([-1]));
     return {
       path,
       player: "chance",
-      actionLabels:
-        nextActionsText === "terminal" || nextActionsText === "chance"
-          ? [nextActionsText]
-          : nextActionsText
-              .split("/")
-              .filter(Boolean)
-              .map((action: string, index: number) =>
-                parseActionString(action, index).label
-              ),
+      actionLabels: [],
       actionFrequencies: [],
       children: [],
       note: "Chance node collapsed over future cards",

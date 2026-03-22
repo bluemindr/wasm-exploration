@@ -38,8 +38,8 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref } from "vue";
-import { useConfigStore } from "../store";
+import { defineComponent, ref, watch } from "vue";
+import { useConfigStore, useStore } from "../store";
 import { cardText, parseCardString } from "../utils";
 
 import BoardSelectorCard from "./BoardSelectorCard.vue";
@@ -51,6 +51,7 @@ export default defineComponent({
 
   setup() {
     const config = useConfigStore();
+    const store = useStore();
     const boardText = ref("");
 
     const toggleCard = (cardId: number, updateText = true) => {
@@ -109,6 +110,16 @@ export default defineComponent({
       config.board.sort((a, b) => b - a);
       setBoardTextFromButtons();
     };
+
+    watch(
+      () => [store.navView, store.sideView, config.board.join(",")],
+      ([navView, sideView]) => {
+        if (navView === "solver" && sideView === "board") {
+          setBoardTextFromButtons();
+        }
+      },
+      { immediate: true }
+    );
 
     return {
       config,

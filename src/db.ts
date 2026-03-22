@@ -308,6 +308,13 @@ export const getResearchRuns = async (situationKey: string) => {
     .sortBy("updatedAt")) as ResearchRunRecord[];
 };
 
+export const getResearchRun = async (situationKey: string, flopKey: string) => {
+  return (await db.researchRuns
+    .where("[situationKey+flopKey]")
+    .equals([situationKey, flopKey])
+    .first()) as ResearchRunRecord | undefined;
+};
+
 export const putResearchRun = async (record: ResearchRunRecord) => {
   try {
     return await db.transaction("rw", db.researchRuns, async () => {

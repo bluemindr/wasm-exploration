@@ -117,8 +117,8 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref } from "vue";
-import { useConfigStore } from "../store";
+import { defineComponent, ref, watch } from "vue";
+import { useConfigStore, useStore } from "../store";
 import { ranks, rankPat } from "../utils";
 import { RangeManager } from "../../pkg/range/range";
 
@@ -149,6 +149,7 @@ export default defineComponent({
 
   setup(props) {
     const config = useConfigStore();
+    const store = useStore();
 
     const range = RangeManager.new();
     const rangeStore = config.range[props.player];
@@ -260,6 +261,34 @@ export default defineComponent({
       rangeText.value = String(rangeStr);
       onRangeTextChange();
     };
+
+    const syncFromStore = () => {
+      range.clear();
+
+      for (let row = 1; row <= 13; ++row) {
+        for (let col = 1; col <= 13; ++col) {
+          const value = rangeStore[cellIndex(row, col)];
+          if (value > 0) {
+            range.update(row, col, value / 100);
+          }
+        }
+      }
+
+      rangeText.value = range.to_string();
+      rangeTextError.value = "";
+      numCombos.value = rangeStoreRaw.reduce((acc, cur) => acc + cur, 0);
+    };
+
+    watch(
+      () => [store.navView, store.sideView],
+      ([navView, sideView]) => {
+        const targetSideView = props.player === 0 ? "oop-range" : "ip-range";
+        if (navView === "solver" && sideView === targetSideView) {
+          syncFromStore();
+        }
+      },
+      { immediate: true }
+    );
 
     return {
       yellow500,

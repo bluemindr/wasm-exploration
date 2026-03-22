@@ -8,8 +8,17 @@ import {
 
 export type ConfigStore = ReturnType<typeof useConfigStore>;
 
-export const checkConfig = (config: ConfigStore): string | null => {
-  if (config.board.length < 3) {
+type CheckConfigOptions = {
+  boardOverride?: number[];
+};
+
+export const checkConfig = (
+  config: ConfigStore,
+  options?: CheckConfigOptions
+): string | null => {
+  const board = options?.boardOverride ?? config.board;
+
+  if (board.length < 3) {
     return "Board must consist of at least three cards";
   }
 
@@ -82,7 +91,7 @@ export const checkConfig = (config: ConfigStore): string | null => {
 
   if (
     config.expectedBoardLength > 0 &&
-    config.board.length !== config.expectedBoardLength
+    board.length !== config.expectedBoardLength
   ) {
     return `Invalid board (expected ${config.expectedBoardLength} cards)`;
   }

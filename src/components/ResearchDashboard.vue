@@ -112,6 +112,9 @@
             La recherche se base sur la config actuellement chargée dans
             l'éditeur solver.
           </p>
+          <p v-if="!supportsSharedThreads" class="mt-2 text-sm text-amber-700">
+            Multi-thread WASM indisponible dans ce contexte navigateur. La recherche utilise 1 thread.
+          </p>
 
           <div class="mt-5 grid gap-4 sm:grid-cols-2">
             <label class="text-sm font-semibold text-slate-700">
@@ -167,6 +170,29 @@
 
           <div v-if="invalidCustomBoards.length > 0" class="mt-2 text-sm font-semibold text-red-600">
             Invalid custom flops: {{ invalidCustomBoards.join(", ") }}
+          </div>
+
+          <div class="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+            <div class="flex items-center justify-between gap-4">
+              <div>
+                <div class="text-sm font-semibold text-slate-900">Effective flop list</div>
+                <div class="mt-1 text-xs text-slate-500">
+                  Liste exacte qui sera lancée par la batch: sélection représentative du bas + custom flops valides.
+                </div>
+              </div>
+              <div class="text-right text-sm font-semibold text-slate-600">
+                {{ selectedRepresentativeFlopCount }} representative
+                <br />
+                {{ validCustomFlopCount }} custom
+              </div>
+            </div>
+
+            <textarea
+              :value="effectiveFlopListText"
+              rows="7"
+              readonly
+              class="mt-3 w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-800"
+            ></textarea>
           </div>
 
           <label class="mt-5 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700">
@@ -402,6 +428,12 @@
                 </div>
               </div>
             </div>
+
+            <div v-if="!result.error" class="mt-5 flex justify-end">
+              <button class="button-base button-blue" @click="openResultPage(result)">
+                Open Result Page
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -435,6 +467,9 @@ import { toFixedAdaptive } from "../utils";
 
 type BatchResult = {
   key: string;
+  situationKey: string;
+  flopKey: string;
+  presetLabel: string;
   flop: FlopStudyItem;
   board: number[];
   outcome: SolveOutcome | null;
@@ -477,6 +512,9 @@ export default defineComponent({
   setup() {
     const appStore = useStore();
     const config = useConfigStore();
+    const supportsSharedThreads =
+      typeof SharedArrayBuffer !== "undefined" &&
+      window.crossOriginIsolated === true;
 
     const presets = researchPresets;
     const flops = representativeFlops;
@@ -484,7 +522,9 @@ export default defineComponent({
     const selectedPresetId = ref<ResearchPresetId>(presets[0].id);
     const selectedFlopIds = ref(flops.map((flop) => flop.id));
     const customBoardsText = ref("");
-    const numThreads = ref(Math.max(1, navigator.hardwareConcurrency || 1));
+    const numThreads = ref(
+      supportsSharedThreads ? Math.max(1, navigator.hardwareConcurrency || 1) : 1
+    );
     const targetExploitability = ref(0.3);
     const maxIterations = ref(1000);
     const treeDepth = ref(2);
@@ -529,6 +569,25 @@ export default defineComponent({
       const base = flops.filter((flop) => selectedFlopIds.value.includes(flop.id));
       const custom = customFlops.value.filter((flop) => flop.parsedBoard.length === 3);
       return [...base, ...custom];
+    });
+
+    const selectedRepresentativeFlopCount = computed(() => selectedFlopIds.value.length);
+
+    const validCustomFlopCount = computed(
+      () => customFlops.value.filter((flop) => flop.parsedBoard.length === 3).length
+    );
+
+    const effectiveFlopListText = computed(() => {
+      if (activeFlops.value.length === 0) {
+        return "No flop selected yet.";
+      }
+
+      return activeFlops.value
+        .map((flop, index) => {
+          const source = "parsedBoard" in flop ? "custom" : "representative";
+          return `${String(index + 1).padStart(2, "0")}. ${flop.boardText} | ${flop.label} | ${source}`;
+        })
+        .join("\n");
     });
 
     const aggregateActions = computed<AggregateAction[]>(() => {
@@ -626,9 +685,18 @@ export default defineComponent({
     const progressText = computed(() => statusText.value);
 
     const loadSelectedPreset = () => {
-      applyResearchPreset(config, selectedPreset.value);
-      appStore.navView = "solver";
-      appStore.sideView = "oop-range";
+      try {
+        applyResearchPreset(config, selectedPreset.value);
+        appStore.selectedResearchResult = null;
+        appStore.navView = "solver";
+        appStore.sideView = "oop-range";
+        statusText.value = `Loaded ${selectedPreset.value.label} into Solver.`;
+      } catch (error) {
+        statusText.value =
+          error instanceof Error
+            ? `Failed to load preset: ${error.message}`
+            : `Failed to load preset: ${String(error)}`;
+      }
     };
 
     const presetCardClass = (presetId: ResearchPresetId) => {
@@ -655,6 +723,17 @@ export default defineComponent({
     const clearResults = () => {
       results.value = [];
       statusText.value = "Results cleared.";
+    };
+
+    const openResultPage = (result: BatchResult) => {
+      appStore.selectedResearchResult = {
+        situationKey: result.situationKey,
+        flopKey: result.flopKey,
+        presetLabel: result.presetLabel,
+        boardText: result.flop.boardText,
+        flopLabel: result.flop.label,
+      };
+      appStore.navView = "results";
     };
 
     const upsertResult = (result: BatchResult) => {
@@ -686,14 +765,18 @@ export default defineComponent({
     };
 
     const runResearch = async () => {
-      const configError = checkConfig(config);
-      if (configError) {
-        statusText.value = `Current solver config is invalid: ${configError}`;
+      if (activeFlops.value.length === 0) {
+        statusText.value = "Select at least one representative flop.";
         return;
       }
 
-      if (activeFlops.value.length === 0) {
-        statusText.value = "Select at least one representative flop.";
+      const validationBoard =
+        "parsedBoard" in activeFlops.value[0]
+          ? activeFlops.value[0].parsedBoard
+          : parseStudyBoard(activeFlops.value[0].boardText);
+      const configError = checkConfig(config, { boardOverride: validationBoard });
+      if (configError) {
+        statusText.value = `Current solver config is invalid: ${configError}`;
         return;
       }
 
@@ -724,6 +807,9 @@ export default defineComponent({
           const cachedValue = cachedMap.get(flopKey)?.value as PersistedBatchValue;
           upsertResult({
             key: resultKey,
+            situationKey,
+            flopKey,
+            presetLabel: cachedMap.get(flopKey)?.presetLabel || selectedPreset.value.label,
             flop: cachedValue.flop,
             board: cachedValue.board,
             outcome: cachedValue.outcome,
@@ -752,6 +838,9 @@ export default defineComponent({
           outcome.rootSummary.actions = normalizeActions(outcome.rootSummary.actions);
           const batchResult = {
             key: resultKey,
+            situationKey,
+            flopKey,
+            presetLabel: selectedPreset.value.label,
             flop,
             board,
             outcome,
@@ -776,6 +865,9 @@ export default defineComponent({
           const message = error instanceof Error ? error.message : String(error);
           const batchResult = {
             key: resultKey,
+            situationKey,
+            flopKey,
+            presetLabel: selectedPreset.value.label,
             flop,
             board,
             outcome: null,
@@ -810,6 +902,7 @@ export default defineComponent({
       selectedFlopIds,
       customBoardsText,
       numThreads,
+      supportsSharedThreads,
       targetExploitability,
       maxIterations,
       treeDepth,
@@ -818,6 +911,9 @@ export default defineComponent({
       results,
       aggregateActions,
       invalidCustomBoards,
+      selectedRepresentativeFlopCount,
+      validCustomFlopCount,
+      effectiveFlopListText,
       llmPrompt,
       progressTitle,
       progressText,
@@ -829,6 +925,7 @@ export default defineComponent({
       toggleFlop,
       selectAllFlops,
       clearResults,
+      openResultPage,
       copyLlmPrompt,
       runResearch,
     };

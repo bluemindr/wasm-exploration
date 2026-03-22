@@ -150,11 +150,11 @@ export const researchPresets: ResearchPreset[] = [
     label: "BB vs BTN 3bet Pot",
     summary: "3bet pot OOP, SPR plus faible, ranges resserrées.",
     note:
-      "Preset pensé pour une étude rapide des flops en pot 3bet avec une profondeur postflop plus faible et plus de pression de stack.",
+      "Baseline plus proche d'un profil GTO moderne: 3bet BB nettement moins loose et range de call BTN davantage structurée autour des pocket pairs, broadways suited et connecteurs IP.",
     oopRangeText:
-      "77+,A2s+,K9s+,Q9s+,J9s+,T8s+,98s,87s,A5o+,AJo+,KTo+,QTo+,JTo",
+      "88,99,TT,JJ,QQ,KK,AA,A4s,A5s,ATs,AJs,AQs,AKs,KTs,KJs,KQs,QTs,QJs,JTs,T9s,98s,AQo,AKo,KQo",
     ipRangeText:
-      "22-QQ,A2s-AQs,KTs+,QTs+,JTs,T9s,98s,AJo-AQo,KQo",
+      "22,33,44,55,66,77,88,99,TT,JJ,A2s,A3s,A4s,A5s,AJs,AQs,K9s,KTs,KJs,KQs,Q9s,QTs,QJs,J9s,JTs,T8s,T9s,97s,98s,87s,76s,65s,AJo,AQo,KQo",
     startingPot: 205,
     effectiveStack: 860,
     rakePercent: 4,
@@ -181,11 +181,11 @@ export const researchPresets: ResearchPreset[] = [
     label: "SB vs BTN 3bet Pot",
     summary: "3bet pot, SB OOP après open BTN / 3bet SB / call BTN.",
     note:
-      "Arbre 3bet orienté small-bet flop puis 1/2 turn et pot river, avec all-in comme raise naturel quand les stacks se raccourcissent.",
+      "Version plus crédible du duel SB vs BTN: 3bet SB moins excessif hors de position, et call BTN plus discipliné malgré l'avantage de position.",
     oopRangeText:
-      "66+,A2s+,K8s+,Q9s+,J9s+,T8s+,98s,87s,A5o+,ATo+,KJo+,QJo",
+      "88,99,TT,JJ,QQ,KK,AA,A4s,A5s,ATs,AJs,AQs,AKs,KTs,KJs,KQs,QTs,QJs,JTs,T9s,98s,AQo,AKo,KQo",
     ipRangeText:
-      "22-QQ,A2s-AQs,K9s+,Q9s+,J9s+,T9s,98s,AJo-AQo,KQo",
+      "22,33,44,55,66,77,88,99,TT,JJ,A2s,A3s,A4s,A5s,AJs,AQs,KTs,KJs,KQs,Q9s,QTs,QJs,J9s,JTs,T8s,T9s,98s,87s,76s,AJo,AQo,KQo",
     startingPot: 165,
     effectiveStack: 900,
     rakePercent: 4,
@@ -212,11 +212,11 @@ export const researchPresets: ResearchPreset[] = [
     label: "SB vs CO 3bet Pot",
     summary: "3bet pot, SB OOP après open CO / 3bet SB / call CO.",
     note:
-      "CO call 3bet un peu plus tight que BTN. Même famille d'arbre 3bet: 33/50 flop, 1/2 turn, 1/2 ou pot river.",
+      "CO défend plus tight que BTN, avec moins de suited trash et une composante broadway/pocket pair plus marquée dans le call IP.",
     oopRangeText:
-      "77+,A2s+,K9s+,Q9s+,J9s+,T8s+,98s,87s,A5o+,ATo+,KQo",
+      "99,TT,JJ,QQ,KK,AA,A4s,A5s,AJs,AQs,AKs,KTs,KJs,KQs,QTs,QJs,JTs,T9s,AQo,AKo,KQo",
     ipRangeText:
-      "33-QQ,A2s-AJs,KTs+,QTs+,JTs,T9s,98s,AQo,KQo",
+      "44,55,66,77,88,99,TT,JJ,A5s,ATs,AJs,AQs,KTs,KJs,KQs,QTs,QJs,JTs,T9s,98s,87s,AQo,KQo",
     startingPot: 175,
     effectiveStack: 895,
     rakePercent: 4,
@@ -243,11 +243,11 @@ export const researchPresets: ResearchPreset[] = [
     label: "SB vs UTG 6max 3bet Pot",
     summary: "3bet pot, SB OOP après open UTG 6-max / 3bet SB / call UTG.",
     note:
-      "Version la plus tight des 3bet pots proposés, adaptée pour étudier les boards high-card et les simplifications à faible SPR.",
+      "Version volontairement tight et polarisée, plus compatible avec des tendances GTO UTG vs SB: peu de suited faibles, call UTG surtout centré sur les pockets intermédiaires et les broadways forts.",
     oopRangeText:
-      "88+,ATs+,KTs+,QTs+,JTs,T9s,AQo+,AKo",
+      "TT,JJ,QQ,KK,AA,A4s,A5s,AQs,AKs,KQs,AKo",
     ipRangeText:
-      "55-QQ,AQs-AJs,KQs,QJs,JTs,AQo",
+      "88,99,TT,JJ,QQ,AJs,AQs,KQs,QJs,JTs,T9s,AQo",
     startingPot: 185,
     effectiveStack: 890,
     rakePercent: 4,
@@ -413,9 +413,12 @@ export const representativeFlops: FlopStudyItem[] = [
 ];
 
 const parseBoardText = (boardText: string): number[] => {
-  const board = boardText
-    .split(/[,\s]+/)
-    .map((item) => item.trim())
+  const normalized = boardText.trim();
+  const tokens = /[\s,]/.test(normalized)
+    ? normalized.split(/[\,\s]+/).map((item) => item.trim())
+    : normalized.match(/.{1,2}/g) ?? [];
+
+  const board = tokens
     .filter(Boolean)
     .map(parseCardString)
     .filter((card): card is number => card !== null);

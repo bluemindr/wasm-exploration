@@ -3,6 +3,14 @@ import { sanitizeBetString } from "./utils";
 
 export type NavView = "solver" | "research" | "results";
 
+export type ResearchResultSelection = {
+  situationKey: string;
+  flopKey: string;
+  presetLabel: string;
+  boardText: string;
+  flopLabel: string;
+};
+
 export type SideView =
   | "about"
   | "oop-range"
@@ -101,6 +109,7 @@ export const useStore = defineStore("app", {
     isFinalizing: false,
     isSolverPaused: false,
     isSolverFinished: false,
+    selectedResearchResult: null as ResearchResultSelection | null,
   }),
 
   getters: {

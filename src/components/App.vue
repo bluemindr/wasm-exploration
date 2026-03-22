@@ -58,7 +58,14 @@
       class="overflow-y-auto"
       style="height: calc(100% - 2.5rem)"
     >
-      <ResultViewer style="height: calc(max(100%, 720px - 2.5rem))" />
+      <ResearchResultViewer
+        v-if="store.selectedResearchResult"
+        style="height: calc(max(100%, 720px - 2.5rem))"
+      />
+      <ResultViewer
+        v-else
+        style="height: calc(max(100%, 720px - 2.5rem))"
+      />
     </div>
   </div>
 </template>
@@ -76,6 +83,7 @@ import TreeConfig from "./TreeConfig.vue";
 import RunSolver from "./RunSolver.vue";
 import ResearchDashboard from "./ResearchDashboard.vue";
 import ResultViewer from "./ResultViewer.vue";
+import ResearchResultViewer from "./ResearchResultViewer.vue";
 
 export default defineComponent({
   components: {
@@ -88,6 +96,7 @@ export default defineComponent({
     RunSolver,
     ResearchDashboard,
     ResultViewer,
+    ResearchResultViewer,
   },
 
   setup() {
