@@ -56,11 +56,11 @@ export const researchPresets: ResearchPreset[] = [
   {
     id: "btn-vs-bb-srp",
     label: "BTN vs BB SRP",
-    summary: "Single-raised pot, BB OOP, no ante, deep stack typique.",
+    summary: "Single-raised pot 100BB, open BTN 3BB, BB defend OOP, sans ante.",
     note:
-      "Preset volontairement editable et 'GTO-ish' plutot que dogmatique: le but est de fournir une base de travail cohérente pour l'étude multi-flops.",
+      "Approximation GTO ouverte pour cash game 100BB avec open 3x. Le pot flop vaut 65 et le stack effectif restant 970.",
     oopRangeText:
-      "22+,A2s+,K2s+,Q4s+,J6s+,T6s+,96s+,86s+,75s+,64s+,53s+,43s,A2o+,K5o+,Q8o+,J8o+,T8o+,98o,87o",
+      "22+,A2s+,K4s+,Q7s+,J7s+,T7s+,97s+,86s+,76s,65s,54s,43s,A5o+,A8o+,K9o+,Q9o+,J9o+,T9o,98o,87o",
     ipRangeText:
       "22+,A2s+,K2s+,Q5s+,J7s+,T7s+,97s+,86s+,75s+,64s+,53s+,43s,A2o+,K7o+,Q9o+,J9o+,T9o",
     startingPot: 65,
@@ -87,13 +87,13 @@ export const researchPresets: ResearchPreset[] = [
   {
     id: "co-vs-bb-srp",
     label: "CO vs BB SRP",
-    summary: "Single-raised pot, BB OOP contre open CO, profondeur standard sans ante.",
+    summary: "Single-raised pot 100BB, open CO 3BB, BB defend OOP, sans ante.",
     note:
-      "Range d'open CO un peu plus serrée que BTN, avec toujours l'arbre deep stack 33/50 flop, 50/100 turn, 50 river.",
+      "Approximation GTO ouverte pour cash game 100BB avec open CO 3x. Le pot flop vaut 65 et le stack effectif restant 970.",
     oopRangeText:
-      "22+,A2s+,K3s+,Q6s+,J7s+,T7s+,97s+,87s,76s,65s,54s,A2o+,K7o+,Q9o+,J9o+,T9o,98o",
+      "22+,A2s+,K5s+,Q8s+,J8s+,T8s+,97s+,87s,76s,65s,54s,A7o+,A9o+,KTo+,QTo+,JTo,98o",
     ipRangeText:
-      "22+,A2s+,K5s+,Q7s+,J8s+,T8s+,98s,87s,76s,65s,A7o+,ATo+,KTo+,QTo+,JTo",
+      "22+,A2s+,K5s+,Q7s+,J8s+,T8s+,98s,87s,76s,65s,54s,A8o+,ATo+,KTo+,QTo+,JTo",
     startingPot: 65,
     effectiveStack: 970,
     rakePercent: 5,
@@ -118,13 +118,13 @@ export const researchPresets: ResearchPreset[] = [
   {
     id: "utg-vs-bb-srp",
     label: "UTG 6max vs BB SRP",
-    summary: "Single-raised pot, BB OOP contre open UTG 6-max, ranges resserrées.",
+    summary: "Single-raised pot 100BB, open UTG 3BB, BB defend OOP, sans ante.",
     note:
-      "Preset UTG 6-max plus tight, utile pour voir comment l'avantage de range change sur les A-high et K-high boards en SRP.",
+      "Approximation GTO ouverte pour cash game 100BB avec open UTG 3x. Le pot flop vaut 65 et le stack effectif restant 970.",
     oopRangeText:
-      "22+,A2s+,K5s+,Q8s+,J8s+,T8s+,98s,87s,76s,65s,A7o+,A9o+,KTo+,QTo+,JTo",
+      "22+,A2s+,K7s+,Q9s+,J9s+,T8s+,98s,87s,76s,65s,A9o+,ATo+,KJo+,QJo",
     ipRangeText:
-      "44+,A2s+,KTs+,QTs+,JTs,T9s,98s,AJo+,KQo",
+      "55+,A2s+,ATs+,KTs+,QTs+,JTs,T9s,98s,AQo+,AJo,KQo",
     startingPot: 65,
     effectiveStack: 970,
     rakePercent: 5,
@@ -149,15 +149,15 @@ export const researchPresets: ResearchPreset[] = [
   {
     id: "bb-vs-btn-3bet",
     label: "BB vs BTN 3bet Pot",
-    summary: "3bet pot OOP, SPR plus faible, ranges resserrées.",
+    summary: "3bet pot 100BB, BB 3bet OOP à 12BB vs open BTN 3BB.",
     note:
-      "Baseline plus proche d'un profil GTO moderne: 3bet BB nettement moins loose et range de call BTN davantage structurée autour des pocket pairs, broadways suited et connecteurs IP.",
+      "Approximation GTO ouverte pour cash game 100BB avec 3bet OOP à 12x. Le pot flop vaut 245 et le stack effectif restant 880.",
     oopRangeText:
-      "88,99,TT,JJ,QQ,KK,AA,A4s,A5s,ATs,AJs,AQs,AKs,KTs,KJs,KQs,QTs,QJs,JTs,T9s,98s,AQo,AKo,KQo",
+      "88,99,TT,JJ,QQ,KK,AA,A5s,A4s,ATs,AJs,AQs,AKs,KTs,KJs,KQs,QTs,QJs,JTs,T9s,98s,AQo,AKo,KQo",
     ipRangeText:
-      "22,33,44,55,66,77,88,99,TT,JJ,A2s,A3s,A4s,A5s,AJs,AQs,K9s,KTs,KJs,KQs,Q9s,QTs,QJs,J9s,JTs,T8s,T9s,97s,98s,87s,76s,65s,AJo,AQo,KQo",
-    startingPot: 210,
-    effectiveStack: 900,
+      "44,55,66,77,88,99,TT,JJ,AJs,AQs,KTs,KJs,KQs,QTs,QJs,JTs,T9s,98s,87s,AQo,KQo",
+    startingPot: 245,
+    effectiveStack: 880,
     rakePercent: 4,
     rakeCap: 20,
     oopFlopBet: "33, 50",
@@ -180,15 +180,15 @@ export const researchPresets: ResearchPreset[] = [
   {
     id: "sb-vs-btn-3bet",
     label: "SB vs BTN 3bet Pot",
-    summary: "3bet pot, SB OOP après open BTN / 3bet SB / call BTN.",
+    summary: "3bet pot 100BB, SB 3bet OOP à 12BB vs open BTN 3BB.",
     note:
-      "Version plus crédible du duel SB vs BTN: 3bet SB moins excessif hors de position, et call BTN plus discipliné malgré l'avantage de position.",
+      "Approximation GTO ouverte pour cash game 100BB avec 3bet OOP à 12BB total, blinde incluse. Le pot flop vaut 250 et le stack effectif restant 880.",
     oopRangeText:
-      "88,99,TT,JJ,QQ,KK,AA,A4s,A5s,ATs,AJs,AQs,AKs,KTs,KJs,KQs,QTs,QJs,JTs,T9s,98s,AQo,AKo,KQo",
+      "99,TT,JJ,QQ,KK,AA,A5s,A4s,ATs,AJs,AQs,AKs,KTs,KJs,KQs,QTs,QJs,JTs,T9s,98s,AQo,AKo,KQo",
     ipRangeText:
-      "22,33,44,55,66,77,88,99,TT,JJ,A2s,A3s,A4s,A5s,AJs,AQs,KTs,KJs,KQs,Q9s,QTs,QJs,J9s,JTs,T8s,T9s,98s,87s,76s,AJo,AQo,KQo",
-    startingPot: 200,
-    effectiveStack: 900,
+      "55,66,77,88,99,TT,JJ,AJs,AQs,KTs,KJs,KQs,QTs,QJs,JTs,T9s,98s,AQo,KQo",
+    startingPot: 250,
+    effectiveStack: 880,
     rakePercent: 4,
     rakeCap: 20,
     oopFlopBet: "33, 50",
@@ -211,15 +211,15 @@ export const researchPresets: ResearchPreset[] = [
   {
     id: "sb-vs-co-3bet",
     label: "SB vs CO 3bet Pot",
-    summary: "3bet pot, SB OOP après open CO / 3bet SB / call CO.",
+    summary: "3bet pot 100BB, SB 3bet OOP à 12BB vs open CO 3BB.",
     note:
-      "CO défend plus tight que BTN, avec moins de suited trash et une composante broadway/pocket pair plus marquée dans le call IP.",
+      "Approximation GTO ouverte pour cash game 100BB avec 3bet OOP à 12BB total, blinde incluse. Le pot flop vaut 250 et le stack effectif restant 880.",
     oopRangeText:
-      "99,TT,JJ,QQ,KK,AA,A4s,A5s,AJs,AQs,AKs,KTs,KJs,KQs,QTs,QJs,JTs,T9s,AQo,AKo,KQo",
+      "99,TT,JJ,QQ,KK,AA,A5s,A4s,AJs,AQs,AKs,KTs,KJs,KQs,QTs,QJs,JTs,T9s,AQo,AKo,KQo",
     ipRangeText:
-      "44,55,66,77,88,99,TT,JJ,A5s,ATs,AJs,AQs,KTs,KJs,KQs,QTs,QJs,JTs,T9s,98s,87s,AQo,KQo",
-    startingPot: 200,
-    effectiveStack: 900,
+      "66,77,88,99,TT,JJ,AJs,AQs,KQs,QJs,JTs,T9s,98s,AQo,KQo",
+    startingPot: 250,
+    effectiveStack: 880,
     rakePercent: 4,
     rakeCap: 20,
     oopFlopBet: "33, 50",
@@ -242,15 +242,15 @@ export const researchPresets: ResearchPreset[] = [
   {
     id: "sb-vs-utg-3bet",
     label: "SB vs UTG 6max 3bet Pot",
-    summary: "3bet pot, SB OOP après open UTG 6-max / 3bet SB / call UTG.",
+    summary: "3bet pot 100BB, SB 3bet OOP à 12BB vs open UTG 3BB.",
     note:
-      "Version volontairement tight et polarisée, plus compatible avec des tendances GTO UTG vs SB: peu de suited faibles, call UTG surtout centré sur les pockets intermédiaires et les broadways forts.",
+      "Approximation GTO ouverte pour cash game 100BB avec 3bet OOP à 12BB total, blinde incluse. Le pot flop vaut 250 et le stack effectif restant 880.",
     oopRangeText:
       "TT,JJ,QQ,KK,AA,A4s,A5s,AQs,AKs,KQs,AKo",
     ipRangeText:
-      "88,99,TT,JJ,QQ,AJs,AQs,KQs,QJs,JTs,T9s,AQo",
-    startingPot: 200,
-    effectiveStack: 900,
+      "88,99,TT,JJ,QQ,AQs,AJs,KQs,QJs,JTs,AQo,KQo",
+    startingPot: 250,
+    effectiveStack: 880,
     rakePercent: 4,
     rakeCap: 20,
     oopFlopBet: "33, 50",
