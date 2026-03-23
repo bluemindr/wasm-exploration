@@ -2,6 +2,7 @@
 import { RangeManager } from "../../pkg/range/range";
 import { parseCardString } from "../utils";
 import { useConfigStore } from "../store";
+import type { SolverConfigSnapshot } from "./research-solver";
 
 export type ResearchPresetId =
   | "btn-vs-bb-srp"
@@ -155,8 +156,8 @@ export const researchPresets: ResearchPreset[] = [
       "88,99,TT,JJ,QQ,KK,AA,A4s,A5s,ATs,AJs,AQs,AKs,KTs,KJs,KQs,QTs,QJs,JTs,T9s,98s,AQo,AKo,KQo",
     ipRangeText:
       "22,33,44,55,66,77,88,99,TT,JJ,A2s,A3s,A4s,A5s,AJs,AQs,K9s,KTs,KJs,KQs,Q9s,QTs,QJs,J9s,JTs,T8s,T9s,97s,98s,87s,76s,65s,AJo,AQo,KQo",
-    startingPot: 205,
-    effectiveStack: 860,
+    startingPot: 210,
+    effectiveStack: 900,
     rakePercent: 4,
     rakeCap: 20,
     oopFlopBet: "33, 50",
@@ -186,7 +187,7 @@ export const researchPresets: ResearchPreset[] = [
       "88,99,TT,JJ,QQ,KK,AA,A4s,A5s,ATs,AJs,AQs,AKs,KTs,KJs,KQs,QTs,QJs,JTs,T9s,98s,AQo,AKo,KQo",
     ipRangeText:
       "22,33,44,55,66,77,88,99,TT,JJ,A2s,A3s,A4s,A5s,AJs,AQs,KTs,KJs,KQs,Q9s,QTs,QJs,J9s,JTs,T8s,T9s,98s,87s,76s,AJo,AQo,KQo",
-    startingPot: 165,
+    startingPot: 200,
     effectiveStack: 900,
     rakePercent: 4,
     rakeCap: 20,
@@ -217,8 +218,8 @@ export const researchPresets: ResearchPreset[] = [
       "99,TT,JJ,QQ,KK,AA,A4s,A5s,AJs,AQs,AKs,KTs,KJs,KQs,QTs,QJs,JTs,T9s,AQo,AKo,KQo",
     ipRangeText:
       "44,55,66,77,88,99,TT,JJ,A5s,ATs,AJs,AQs,KTs,KJs,KQs,QTs,QJs,JTs,T9s,98s,87s,AQo,KQo",
-    startingPot: 175,
-    effectiveStack: 895,
+    startingPot: 200,
+    effectiveStack: 900,
     rakePercent: 4,
     rakeCap: 20,
     oopFlopBet: "33, 50",
@@ -248,8 +249,8 @@ export const researchPresets: ResearchPreset[] = [
       "TT,JJ,QQ,KK,AA,A4s,A5s,AQs,AKs,KQs,AKo",
     ipRangeText:
       "88,99,TT,JJ,QQ,AJs,AQs,KQs,QJs,JTs,T9s,AQo",
-    startingPot: 185,
-    effectiveStack: 890,
+    startingPot: 200,
+    effectiveStack: 900,
     rakePercent: 4,
     rakeCap: 20,
     oopFlopBet: "33, 50",
@@ -443,6 +444,64 @@ const setRange = (
   );
   config.range[player].splice(0, config.range[player].length, ...weights);
   config.rangeRaw[player].set(manager.raw_data());
+};
+
+const buildRangeRaw = (rangeText: string) => {
+  const manager = RangeManager.new();
+  const error = manager.from_string(rangeText);
+
+  if (error) {
+    throw new Error(error);
+  }
+
+  return Float32Array.from(manager.raw_data() as ArrayLike<number>);
+};
+
+export const getResearchPresetById = (presetId: ResearchPresetId) => {
+  const preset = researchPresets.find((candidate) => candidate.id === presetId);
+
+  if (!preset) {
+    throw new Error(`Unknown research preset: ${presetId}`);
+  }
+
+  return preset;
+};
+
+export const createResearchPresetSnapshot = (
+  presetId: ResearchPresetId,
+  boardOverride?: number[],
+  treeOverrides?: { oopFlopBet?: string; ipFlopBet?: string }
+): SolverConfigSnapshot => {
+  const preset = getResearchPresetById(presetId);
+
+  return {
+    rangeRaw: [buildRangeRaw(preset.oopRangeText), buildRangeRaw(preset.ipRangeText)],
+    board: [...(boardOverride ?? parseBoardText(preset.referenceBoard))],
+    startingPot: preset.startingPot,
+    effectiveStack: preset.effectiveStack,
+    rakePercent: preset.rakePercent,
+    rakeCap: preset.rakeCap,
+    donkOption: false,
+    oopFlopBet: treeOverrides?.oopFlopBet ?? preset.oopFlopBet,
+    oopFlopRaise: preset.oopFlopRaise,
+    oopTurnBet: preset.oopTurnBet,
+    oopTurnRaise: preset.oopTurnRaise,
+    oopTurnDonk: "",
+    oopRiverBet: preset.oopRiverBet,
+    oopRiverRaise: preset.oopRiverRaise,
+    oopRiverDonk: "",
+    ipFlopBet: treeOverrides?.ipFlopBet ?? preset.ipFlopBet,
+    ipFlopRaise: preset.ipFlopRaise,
+    ipTurnBet: preset.ipTurnBet,
+    ipTurnRaise: preset.ipTurnRaise,
+    ipRiverBet: preset.ipRiverBet,
+    ipRiverRaise: preset.ipRiverRaise,
+    addAllInThreshold: preset.addAllInThreshold,
+    forceAllInThreshold: preset.forceAllInThreshold,
+    mergingThreshold: preset.mergingThreshold,
+    addedLines: "",
+    removedLines: "",
+  };
 };
 
 export const applyResearchPreset = (

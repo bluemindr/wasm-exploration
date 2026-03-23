@@ -210,6 +210,10 @@ export default defineComponent({
       isHandlerUpdated.value = true;
     };
 
+    if (store.isSolverFinished) {
+      void init();
+    }
+
     const clear = () => {
       cards.value = [[], []];
       selectedSpot.value = null;

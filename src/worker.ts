@@ -5,6 +5,15 @@ type ModST = typeof import("../pkg/solver-st/solver.js");
 type ModMT = typeof import("../pkg/solver-mt/solver.js");
 type Mod = ModST | ModMT;
 
+export type WorkerInitInfo = {
+  requestedThreads: number;
+  actualThreads: number;
+  mode: "single-thread" | "multi-thread";
+  usedFallback: boolean;
+  reason: string | null;
+  sharedThreadsSupported: boolean;
+};
+
 const createHandler = (mod: Mod) => {
   const game = mod.GameManager.new();
 
@@ -140,6 +149,7 @@ const isMTSupported = () => {
 };
 
 let mod: Mod | null = null;
+let lastInitInfo: WorkerInitInfo | null = null;
 export type Handler = ReturnType<typeof createHandler>;
 
 const loadSingleThreadModule = async () => {
@@ -156,19 +166,47 @@ const loadMultiThreadModule = async (numThreads: number) => {
 };
 
 const initHandler = async (num_threads: number) => {
+  const sharedThreadsSupported = isMTSupported();
+
   if (num_threads > 1 && isMTSupported()) {
     try {
       await loadMultiThreadModule(num_threads);
+      lastInitInfo = {
+        requestedThreads: num_threads,
+        actualThreads: num_threads,
+        mode: "multi-thread",
+        usedFallback: false,
+        reason: null,
+        sharedThreadsSupported,
+      };
     } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
       console.warn(
-        `Falling back to single-thread solver after multithread initialization failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`
+        `Falling back to single-thread solver after multithread initialization failed: ${reason}`
       );
       await loadSingleThreadModule();
+      lastInitInfo = {
+        requestedThreads: num_threads,
+        actualThreads: 1,
+        mode: "single-thread",
+        usedFallback: true,
+        reason,
+        sharedThreadsSupported,
+      };
     }
   } else {
     await loadSingleThreadModule();
+    lastInitInfo = {
+      requestedThreads: num_threads,
+      actualThreads: 1,
+      mode: "single-thread",
+      usedFallback: num_threads > 1,
+      reason:
+        num_threads > 1 && !sharedThreadsSupported
+          ? "Multithread WebAssembly is not supported in this browser/runtime."
+          : null,
+      sharedThreadsSupported,
+    };
   }
 
   if (!mod) {
@@ -178,6 +216,8 @@ const initHandler = async (num_threads: number) => {
   return Comlink.proxy(createHandler(mod));
 };
 
+const getInitInfo = () => lastInitInfo;
+
 const beforeTerminate = async () => {
   if (mod && "exitThreadPool" in mod) {
     await (mod as ModMT).exitThreadPool();
@@ -186,7 +226,8 @@ const beforeTerminate = async () => {
 
 export interface WorkerApi {
   initHandler: typeof initHandler;
+  getInitInfo: typeof getInitInfo;
   beforeTerminate: typeof beforeTerminate;
 }
 
-Comlink.expose({ initHandler, beforeTerminate });
+Comlink.expose({ initHandler, getInitInfo, beforeTerminate });

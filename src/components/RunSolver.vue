@@ -32,6 +32,9 @@
   </div>
 
   <div class="my-1">Status: {{ treeStatus }}</div>
+  <div v-if="workerModeText" class="my-1 text-sm" :class="workerModeClass">
+    {{ workerModeText }}
+  </div>
 
   <div v-if="isTreeBuilt" class="mt-3">
     <div>
@@ -254,7 +257,7 @@
 
 <script lang="ts">
 import { computed, defineComponent, ref } from "vue";
-import { init, handler } from "../global-worker";
+import { init, handler, workerInitInfo } from "../global-worker";
 import {
   useStore,
   useConfigStore,
@@ -402,7 +405,9 @@ export default defineComponent({
     const config = useConfigStore();
     const tmpConfig = useTmpConfigStore();
 
-    const numThreads = ref((!isSafari && navigator.hardwareConcurrency) || 1);
+    const numThreads = ref(
+      !isSafari ? Math.max(1, Math.min(3, navigator.hardwareConcurrency || 1)) : 1
+    );
     const targetExploitability = ref(0.3);
     const maxIterations = ref(1000);
 
@@ -417,6 +422,7 @@ export default defineComponent({
     const currentIteration = ref(-1);
     const exploitability = ref(Number.POSITIVE_INFINITY);
     const elapsedTimeMs = ref(-1);
+    const workerModeText = ref("");
 
     let startTime = 0;
     let exploitabilityUpdated = false;
@@ -526,6 +532,14 @@ export default defineComponent({
         numThreads.value === 1 ? "" : "s"
       }`;
 
+      workerModeText.value = workerInitInfo
+        ? workerInitInfo.usedFallback
+          ? `Requested ${workerInitInfo.requestedThreads} threads, running on 1 thread fallback. ${workerInitInfo.reason || ""}`.trim()
+          : workerInitInfo.mode === "multi-thread"
+          ? `Running on ${workerInitInfo.actualThreads} worker threads.`
+          : `Running on 1 thread.`
+        : "";
+
       isTreeBuilding.value = false;
       isTreeBuilt.value = true;
       treeStatus.value = `Successfully built tree (${threadText})`;
@@ -615,6 +629,10 @@ export default defineComponent({
       isTreeBuilding,
       isTreeBuilt,
       treeStatus,
+      workerModeText,
+      workerModeClass: computed(() =>
+        workerModeText.value.includes("fallback") ? "text-amber-700" : "text-slate-600"
+      ),
       maxMemoryUsage,
       memoryUsage,
       memoryUsageCompressed,

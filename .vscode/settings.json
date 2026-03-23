@@ -6,6 +6,11 @@
     "rust/tree/Cargo.toml"
   ],
   "chat.tools.terminal.autoApprove": {
-    "cargo install": true
+    "cargo install": true,
+    "cargo tree": true,
+    "command": true,
+    "wasm-objdump": true,
+    "wasm2wat": true,
+    "true": true
   }
 }

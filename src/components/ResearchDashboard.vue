@@ -115,6 +115,9 @@
           <p v-if="!supportsSharedThreads" class="mt-2 text-sm text-amber-700">
             Multi-thread WASM indisponible dans ce contexte navigateur. La recherche utilise 1 thread.
           </p>
+          <p v-if="workerRuntimeText" class="mt-2 text-sm" :class="workerRuntimeClass">
+            {{ workerRuntimeText }}
+          </p>
 
           <div class="mt-5 grid gap-4 sm:grid-cols-2">
             <label class="text-sm font-semibold text-slate-700">
@@ -443,10 +446,12 @@
 
 <script lang="ts">
 import { computed, defineComponent, ref } from "vue";
+import { workerInitInfo } from "../global-worker";
 import { useConfigStore, useStore } from "../store";
 import { getResearchRuns, putResearchRun, type ResearchRunRecord } from "../db";
 import {
   applyResearchPreset,
+  createResearchPresetSnapshot,
   parseStudyBoard,
   representativeFlops,
   researchPresets,
@@ -459,6 +464,7 @@ import {
   captureConfigSnapshot,
   runBatchSolve,
   type FlopTreeOverrides,
+  type SolverConfigSnapshot,
   type SolveOutcome,
   type RootActionSummary,
 } from "../lib/research-solver";
@@ -472,6 +478,7 @@ type BatchResult = {
   presetLabel: string;
   flop: FlopStudyItem;
   board: number[];
+  snapshot: SolverConfigSnapshot;
   outcome: SolveOutcome | null;
   error: string | null;
 };
@@ -485,6 +492,7 @@ type ActiveFlopStudyItem = FlopStudyItem | CustomFlopStudyItem;
 type PersistedBatchValue = {
   flop: FlopStudyItem;
   board: number[];
+  snapshot?: SolverConfigSnapshot;
   outcome: SolveOutcome | null;
   error: string | null;
 };
@@ -523,13 +531,16 @@ export default defineComponent({
     const selectedFlopIds = ref(flops.map((flop) => flop.id));
     const customBoardsText = ref("");
     const numThreads = ref(
-      supportsSharedThreads ? Math.max(1, navigator.hardwareConcurrency || 1) : 1
+      supportsSharedThreads
+        ? Math.max(1, Math.min(3, navigator.hardwareConcurrency || 1))
+        : 1
     );
     const targetExploitability = ref(0.3);
     const maxIterations = ref(1000);
     const treeDepth = ref(2);
     const forceRecalculate = ref(false);
     const isRunning = ref(false);
+    const workerRuntimeText = ref("");
     const statusText = ref(
       "Charge un preset, ajuste les ranges si nécessaire, puis lance la batch research."
     );
@@ -683,6 +694,19 @@ export default defineComponent({
 
     const progressTitle = computed(() => (isRunning.value ? "Batch running" : "Ready"));
     const progressText = computed(() => statusText.value);
+    const workerRuntimeClass = computed(() =>
+      workerRuntimeText.value.includes("fallback") ? "text-amber-700" : "text-slate-600"
+    );
+
+    const refreshWorkerRuntimeText = () => {
+      workerRuntimeText.value = workerInitInfo
+        ? workerInitInfo.usedFallback
+          ? `Requested ${workerInitInfo.requestedThreads} threads, running on 1 thread fallback. ${workerInitInfo.reason || ""}`.trim()
+          : workerInitInfo.mode === "multi-thread"
+          ? `Running on ${workerInitInfo.actualThreads} worker threads.`
+          : `Running on 1 thread.`
+        : "";
+    };
 
     const loadSelectedPreset = () => {
       try {
@@ -782,6 +806,7 @@ export default defineComponent({
 
       isRunning.value = true;
       results.value = [];
+  workerRuntimeText.value = "";
 
       const situationKey = getSituationKey();
       const cachedRuns = forceRecalculate.value
@@ -805,6 +830,34 @@ export default defineComponent({
 
         if (cachedMap.has(flopKey)) {
           const cachedValue = cachedMap.get(flopKey)?.value as PersistedBatchValue;
+          const cachedSnapshot =
+            cachedValue.snapshot ||
+            createResearchPresetSnapshot(
+              (cachedMap.get(flopKey)?.presetId || selectedPreset.value.id) as ResearchPresetId,
+              cachedValue.board,
+              cachedValue.flop.flopBetOverride
+                ? {
+                    oopFlopBet: cachedValue.flop.flopBetOverride,
+                    ipFlopBet: cachedValue.flop.flopBetOverride,
+                  }
+                : undefined
+            );
+
+          if (!cachedValue.snapshot) {
+            await putResearchRun({
+              situationKey,
+              flopKey,
+              presetId: cachedMap.get(flopKey)?.presetId || selectedPreset.value.id,
+              presetLabel: cachedMap.get(flopKey)?.presetLabel || selectedPreset.value.label,
+              boardText: cachedMap.get(flopKey)?.boardText || flop.boardText,
+              updatedAt: cachedMap.get(flopKey)?.updatedAt || Date.now(),
+              value: {
+                ...cachedValue,
+                snapshot: cachedSnapshot,
+              } satisfies PersistedBatchValue,
+            });
+          }
+
           upsertResult({
             key: resultKey,
             situationKey,
@@ -812,6 +865,7 @@ export default defineComponent({
             presetLabel: cachedMap.get(flopKey)?.presetLabel || selectedPreset.value.label,
             flop: cachedValue.flop,
             board: cachedValue.board,
+            snapshot: cachedSnapshot,
             outcome: cachedValue.outcome,
             error: cachedValue.error,
           });
@@ -831,6 +885,7 @@ export default defineComponent({
             flopCount: activeFlops.value.length,
             flopLabel: flop.label,
             onProgress: (progress) => {
+              refreshWorkerRuntimeText();
               statusText.value = `${progress.stage.toUpperCase()} ${progress.flopIndex}/${progress.flopCount} ${progress.flopLabel} | iteration ${progress.currentIteration}/${progress.maxIterations} | exploitability ${formatAdaptive(progress.exploitability)}`;
             },
           });
@@ -843,10 +898,12 @@ export default defineComponent({
             presetLabel: selectedPreset.value.label,
             flop,
             board,
+            snapshot,
             outcome,
             error: null,
           };
           upsertResult(batchResult);
+          refreshWorkerRuntimeText();
           await putResearchRun({
             situationKey,
             flopKey,
@@ -857,6 +914,7 @@ export default defineComponent({
             value: {
               flop,
               board,
+              snapshot,
               outcome,
               error: null,
             } satisfies PersistedBatchValue,
@@ -870,10 +928,12 @@ export default defineComponent({
             presetLabel: selectedPreset.value.label,
             flop,
             board,
+            snapshot,
             outcome: null,
             error: message,
           };
           upsertResult(batchResult);
+          refreshWorkerRuntimeText();
           await putResearchRun({
             situationKey,
             flopKey,
@@ -884,6 +944,7 @@ export default defineComponent({
             value: {
               flop,
               board,
+              snapshot,
               outcome: null,
               error: message,
             } satisfies PersistedBatchValue,
@@ -892,6 +953,7 @@ export default defineComponent({
       }
 
       isRunning.value = false;
+      refreshWorkerRuntimeText();
       statusText.value = `Batch finished on ${activeFlops.value.length} flops.`;
     };
 
@@ -917,6 +979,8 @@ export default defineComponent({
       llmPrompt,
       progressTitle,
       progressText,
+      workerRuntimeText,
+      workerRuntimeClass,
       formatAdaptive,
       formatPercent,
       formatMs,

@@ -85,6 +85,13 @@ export type SolveOutcome = {
   rootSummary: RootSummary;
 };
 
+export type ReplaySolveProgress = {
+  stage: "building" | "allocating" | "iterating" | "finalizing" | "done";
+  currentIteration: number;
+  totalIterations: number;
+  exploitability: number;
+};
+
 export type RunBatchSolveOptions = {
   numThreads: number;
   targetExploitabilityPercent: number;
@@ -684,5 +691,76 @@ export const runBatchSolve = async (
       ...rootSummary,
       boardText: boardToText(snapshot.board).join(" "),
     },
+  };
+};
+
+export const replaySolvedResult = async (
+  snapshot: SolverConfigSnapshot,
+  outcome: Pick<SolveOutcome, "currentIteration" | "compressionEnabled">,
+  numThreads: number,
+  onProgress?: (progress: ReplaySolveProgress) => void
+) => {
+  onProgress?.({
+    stage: "building",
+    currentIteration: 0,
+    totalIterations: outcome.currentIteration,
+    exploitability: Number.POSITIVE_INFINITY,
+  });
+
+  const buildStats = await buildTree(snapshot, numThreads);
+  const solver = getCurrentHandler();
+
+  onProgress?.({
+    stage: "allocating",
+    currentIteration: 0,
+    totalIterations: outcome.currentIteration,
+    exploitability: Number.POSITIVE_INFINITY,
+  });
+
+  await solver.allocateMemory(outcome.compressionEnabled);
+
+  let exploitability = Math.max(await solver.exploitability(), 0);
+  onProgress?.({
+    stage: "iterating",
+    currentIteration: 0,
+    totalIterations: outcome.currentIteration,
+    exploitability,
+  });
+
+  for (let iteration = 0; iteration < outcome.currentIteration; ++iteration) {
+    await solver.iterate(iteration);
+
+    if ((iteration + 1) % 10 === 0 || iteration + 1 === outcome.currentIteration) {
+      exploitability = Math.max(await solver.exploitability(), 0);
+      onProgress?.({
+        stage: "iterating",
+        currentIteration: iteration + 1,
+        totalIterations: outcome.currentIteration,
+        exploitability,
+      });
+    }
+  }
+
+  exploitability = Math.max(await solver.exploitability(), 0);
+  onProgress?.({
+    stage: "finalizing",
+    currentIteration: outcome.currentIteration,
+    totalIterations: outcome.currentIteration,
+    exploitability,
+  });
+
+  await solver.finalize();
+
+  onProgress?.({
+    stage: "done",
+    currentIteration: outcome.currentIteration,
+    totalIterations: outcome.currentIteration,
+    exploitability,
+  });
+
+  return {
+    memoryUsage: buildStats.memoryUsage,
+    memoryUsageCompressed: buildStats.memoryUsageCompressed,
+    exploitability,
   };
 };

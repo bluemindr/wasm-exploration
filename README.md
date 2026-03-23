@@ -171,6 +171,18 @@ $ npm run format
 
 - This fork pins `wasm-bindgen` to `0.2.92` in the Rust crates. Keep the installed `wasm-bindgen-cli` on the same version.
 - Installing `wasm-bindgen-cli` explicitly avoids `wasm-pack` trying to fetch a matching binary on the fly, which is a common source of transient network failures.
+- The multi-threaded solver crate also depends on wasm shared-memory linker exports. Keep [rust/solver-mt/.cargo/config.toml](/home/cchanal/wasm_exploration/rust/solver-mt/.cargo/config.toml) aligned with:
+
+```toml
+[build]
+target = "wasm32-unknown-unknown"
+rustflags = "-C target-feature=+atomics,+bulk-memory,+mutable-globals,+simd128 -C link-arg=--shared-memory -C link-arg=--import-memory -C link-arg=--export=__wasm_init_tls -C link-arg=--export=__tls_size -C link-arg=--export=__tls_align -C link-arg=--export=__tls_base -C link-arg=--max-memory=4294967296"
+
+[unstable]
+build-std = [\"panic_abort\", \"std\"]
+```
+
+  Without those flags, the browser falls back to one thread or `wasm-bindgen` fails during threaded module preparation.
 - If you hit `could not compile wasm-bindgen` after a dependency refresh, make sure the lockfiles did not drift to another `wasm-bindgen` version. Re-align them with:
 
 ```sh

@@ -1,9 +1,10 @@
 import * as Comlink from "comlink";
-import { WorkerApi, Handler } from "./worker";
+import { WorkerApi, Handler, type WorkerInitInfo } from "./worker";
 
 let worker: Worker | null = null;
 let proxy: Comlink.Remote<WorkerApi> | null = null;
 export let handler: Comlink.Remote<Handler> | null = null;
+export let workerInitInfo: WorkerInitInfo | null = null;
 
 export const init = async (numThreads: number) => {
   if (worker && proxy) {
@@ -18,4 +19,5 @@ export const init = async (numThreads: number) => {
 
   proxy = Comlink.wrap<WorkerApi>(worker);
   handler = await proxy.initHandler(numThreads);
+  workerInitInfo = await proxy.getInitInfo();
 };
