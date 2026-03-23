@@ -47,7 +47,11 @@
                 natif de l'application si besoin.
               </p>
             </div>
-            <button class="button-base button-blue" @click="loadSelectedPreset">
+            <button
+              class="button-base button-blue"
+              :disabled="isRunning"
+              @click="loadSelectedPreset"
+            >
               Load In Solver
             </button>
           </div>
@@ -57,6 +61,7 @@
               v-for="preset in presets"
               :key="preset.id"
               :class="presetCardClass(preset.id)"
+              :disabled="isRunning"
               @click="selectedPresetId = preset.id"
             >
               <div class="flex items-start justify-between gap-3">
@@ -85,11 +90,9 @@
                     Pot
                   </div>
                   <div class="mt-1 font-semibold">{{ preset.startingPot }}</div>
-                      type FlopStudyItem,
                 </div>
                 <div>
-                  <div class="text-xs uppercase tracking-[0.2em] text-slate-400">
-                  </div>
+                  <div class="text-xs uppercase tracking-[0.2em] text-slate-400">Stack</div>
                   <div class="mt-1 font-semibold">{{ preset.effectiveStack }}</div>
                 </div>
                 <div>
@@ -127,6 +130,7 @@
                 type="number"
                 min="1"
                 max="64"
+                :disabled="isRunning"
                 class="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
               />
             </label>
@@ -137,6 +141,7 @@
                 type="number"
                 min="0.05"
                 step="0.05"
+                :disabled="isRunning"
                 class="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
               />
             </label>
@@ -146,6 +151,7 @@
                 v-model="maxIterations"
                 type="number"
                 min="1"
+                :disabled="isRunning"
                 class="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
               />
             </label>
@@ -156,6 +162,7 @@
                 type="number"
                 min="1"
                 max="3"
+                :disabled="isRunning"
                 class="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
               />
             </label>
@@ -166,6 +173,7 @@
             <textarea
               v-model="customBoardsText"
               rows="4"
+              :disabled="isRunning"
               class="mt-1.5 w-full rounded-2xl border border-slate-300 px-3 py-2 text-sm"
               placeholder="One flop per line, e.g.&#10;AcKd3h&#10;Kh8d3c"
             ></textarea>
@@ -199,7 +207,7 @@
           </div>
 
           <label class="mt-5 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700">
-            <input v-model="forceRecalculate" type="checkbox" class="rounded" />
+            <input v-model="forceRecalculate" type="checkbox" class="rounded" :disabled="isRunning" />
             Force Recalculate
             <span class="font-normal text-slate-500">
               Ignore le cache persistant de cette situation et relance tous les flops.
@@ -212,12 +220,19 @@
               :disabled="isRunning || invalidCustomBoards.length > 0"
               @click="runResearch"
             >
-              Run Batch Research
+              Load Preset And Run Batch
             </button>
-            <button class="button-base button-green" @click="selectAllFlops">
+            <button
+              class="button-base button-red"
+              :disabled="!isRunning"
+              @click="stopResearch"
+            >
+              Stop Run
+            </button>
+            <button class="button-base button-green" :disabled="isRunning" @click="selectAllFlops">
               Select All
             </button>
-            <button class="button-base button-red" @click="clearResults">
+            <button class="button-base button-red" :disabled="isRunning" @click="clearResults">
               Clear Results
             </button>
           </div>
@@ -225,6 +240,10 @@
           <div class="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
             <div class="font-semibold text-slate-900">{{ progressTitle }}</div>
             <div class="mt-1">{{ progressText }}</div>
+            <div class="mt-3 grid gap-2 text-xs text-slate-500 sm:grid-cols-2">
+              <div>Selected preset: <span class="font-semibold text-slate-700">{{ selectedPreset.label }}</span></div>
+              <div>Running preset: <span class="font-semibold text-slate-700">{{ activeRunPresetLabel || '-' }}</span></div>
+            </div>
           </div>
         </div>
       </section>
@@ -247,17 +266,19 @@
           <label
             v-for="flop in flops"
             :key="flop.id"
-            class="group flex cursor-pointer gap-3 rounded-2xl border px-4 py-4 transition-colors"
+            class="group flex gap-3 rounded-2xl border px-4 py-4 transition-colors"
             :class="
               selectedFlopIds.includes(flop.id)
                 ? 'border-sky-300 bg-sky-50'
                 : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
             "
+            :style="isRunning ? 'pointer-events:none; opacity:0.7' : ''"
           >
             <input
               :checked="selectedFlopIds.includes(flop.id)"
               type="checkbox"
               class="mt-1 rounded"
+              :disabled="isRunning"
               @change="toggleFlop(flop.id)"
             />
             <div class="min-w-0 flex-1">
@@ -445,9 +466,14 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, ref } from "vue";
+import { computed, defineComponent, ref, watch } from "vue";
 import { workerInitInfo } from "../global-worker";
-import { useConfigStore, useStore } from "../store";
+import {
+  buildResearchResultUrl,
+  clearResearchResultSelection,
+  useConfigStore,
+  useStore,
+} from "../store";
 import { getResearchRuns, putResearchRun, type ResearchRunRecord } from "../db";
 import {
   applyResearchPreset,
@@ -462,6 +488,7 @@ import {
   exportSolvedGame,
   computeFlopKey,
   computeSituationKey,
+  computeSituationKeyFromSnapshot,
   captureConfigSnapshot,
   runBatchSolve,
   type FlopTreeOverrides,
@@ -498,9 +525,6 @@ type PersistedBatchValue = {
   outcome: SolveOutcome | null;
   error: string | null;
 };
-
-const cloneBinary = (value: Uint8Array) =>
-  value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength);
 
 type AggregateAction = {
   label: string;
@@ -545,6 +569,8 @@ export default defineComponent({
     const treeDepth = ref(2);
     const forceRecalculate = ref(false);
     const isRunning = ref(false);
+    const stopRequested = ref(false);
+    const activeRunPresetLabel = ref("");
     const workerRuntimeText = ref("");
     const statusText = ref(
       "Charge un preset, ajuste les ranges si nécessaire, puis lance la batch research."
@@ -589,9 +615,37 @@ export default defineComponent({
 
     const selectedRepresentativeFlopCount = computed(() => selectedFlopIds.value.length);
 
+    const selectedPresetSnapshot = computed(() =>
+      createResearchPresetSnapshot(selectedPresetId.value)
+    );
+
+    const situationKey = computed(() =>
+      computeSituationKeyFromSnapshot(selectedPresetSnapshot.value, selectedPresetId.value, {
+        targetExploitabilityPercent: targetExploitability.value,
+        maxIterations: maxIterations.value,
+        treeDepth: treeDepth.value,
+      })
+    );
+
     const validCustomFlopCount = computed(
       () => customFlops.value.filter((flop) => flop.parsedBoard.length === 3).length
     );
+
+    const activeFlopDescriptors = computed(() => {
+      return activeFlops.value.map((flop) => {
+        const treeOverrides: FlopTreeOverrides | undefined = flop.flopBetOverride
+          ? {
+              oopFlopBet: flop.flopBetOverride,
+              ipFlopBet: flop.flopBetOverride,
+            }
+          : undefined;
+
+        return {
+          flop,
+          flopKey: computeFlopKey(flop.boardText, treeOverrides),
+        };
+      });
+    });
 
     const effectiveFlopListText = computed(() => {
       if (activeFlops.value.length === 0) {
@@ -697,7 +751,11 @@ export default defineComponent({
       ].join("\n\n");
     });
 
-    const progressTitle = computed(() => (isRunning.value ? "Batch running" : "Ready"));
+    const progressTitle = computed(() =>
+      isRunning.value
+        ? `Batch running${activeRunPresetLabel.value ? `: ${activeRunPresetLabel.value}` : ""}`
+        : "Ready"
+    );
     const progressText = computed(() => statusText.value);
     const workerRuntimeClass = computed(() =>
       workerRuntimeText.value.includes("fallback") ? "text-amber-700" : "text-slate-600"
@@ -714,10 +772,14 @@ export default defineComponent({
     };
 
     const loadSelectedPreset = () => {
+      if (isRunning.value) {
+        statusText.value = "Cannot load a preset into Solver while a batch is running.";
+        return;
+      }
+
       try {
         applyResearchPreset(config, selectedPreset.value);
-        appStore.selectedResearchResult = null;
-        appStore.navView = "solver";
+        clearResearchResultSelection(appStore, "solver");
         appStore.sideView = "oop-range";
         statusText.value = `Loaded ${selectedPreset.value.label} into Solver.`;
       } catch (error) {
@@ -754,15 +816,73 @@ export default defineComponent({
       statusText.value = "Results cleared.";
     };
 
+    const stopResearch = () => {
+      if (!isRunning.value) {
+        return;
+      }
+
+      stopRequested.value = true;
+      statusText.value = "Stopping current batch after the current solver step...";
+    };
+
+    const toResearchResultSelection = (result: BatchResult) => ({
+      situationKey: result.situationKey,
+      flopKey: result.flopKey,
+      presetLabel: result.presetLabel,
+      boardText: result.flop.boardText,
+      flopLabel: result.flop.label,
+    });
+
     const openResultPage = (result: BatchResult) => {
-      appStore.selectedResearchResult = {
-        situationKey: result.situationKey,
-        flopKey: result.flopKey,
-        presetLabel: result.presetLabel,
-        boardText: result.flop.boardText,
-        flopLabel: result.flop.label,
+      window.open(buildResearchResultUrl(toResearchResultSelection(result)), "_blank", "noopener");
+    };
+
+    const toBatchResult = (
+      scenarioKey: string,
+      descriptor: (typeof activeFlopDescriptors.value)[number],
+      record: ResearchRunRecord
+    ): BatchResult => {
+      const cachedValue = record.value as PersistedBatchValue;
+      const cachedSnapshot =
+        cachedValue.snapshot ||
+        createResearchPresetSnapshot(
+          record.presetId as ResearchPresetId,
+          cachedValue.board,
+          cachedValue.flop.flopBetOverride
+            ? {
+                oopFlopBet: cachedValue.flop.flopBetOverride,
+                ipFlopBet: cachedValue.flop.flopBetOverride,
+              }
+            : undefined
+        );
+
+      return {
+        key: `${scenarioKey}-${descriptor.flopKey}`,
+        situationKey: scenarioKey,
+        flopKey: descriptor.flopKey,
+        presetLabel: record.presetLabel,
+        flop: descriptor.flop,
+        board: cachedValue.board,
+        snapshot: cachedSnapshot,
+        outcome: cachedValue.outcome,
+        error: cachedValue.error,
       };
-      appStore.navView = "results";
+    };
+
+    const syncResultsFromCache = async () => {
+      if (isRunning.value) {
+        return;
+      }
+
+      const cachedRuns = await getResearchRuns(situationKey.value);
+      const cachedMap = new Map<string, ResearchRunRecord>(
+        cachedRuns.map((record) => [record.flopKey, record])
+      );
+
+      results.value = activeFlopDescriptors.value.flatMap((descriptor) => {
+        const record = cachedMap.get(descriptor.flopKey);
+        return record ? [toBatchResult(situationKey.value, descriptor, record)] : [];
+      });
     };
 
     const upsertResult = (result: BatchResult) => {
@@ -777,12 +897,7 @@ export default defineComponent({
       results.value = next;
     };
 
-    const getSituationKey = () =>
-      computeSituationKey(config, selectedPresetId.value, {
-        targetExploitabilityPercent: targetExploitability.value,
-        maxIterations: maxIterations.value,
-        treeDepth: treeDepth.value,
-      });
+    const getSituationKey = () => situationKey.value;
 
     const copyLlmPrompt = async () => {
       await navigator.clipboard.writeText(llmPrompt.value);
@@ -794,15 +909,38 @@ export default defineComponent({
     };
 
     const runResearch = async () => {
+      if (isRunning.value) {
+        return;
+      }
+
       if (activeFlops.value.length === 0) {
         statusText.value = "Select at least one representative flop.";
         return;
       }
 
+      const runPreset = selectedPreset.value;
+      const runFlops = [...activeFlops.value];
+      const runNumThreads = numThreads.value;
+      const runTargetExploitability = targetExploitability.value;
+      const runMaxIterations = maxIterations.value;
+      const runTreeDepth = treeDepth.value;
+      const runForceRecalculate = forceRecalculate.value;
+
+      try {
+        applyResearchPreset(config, runPreset);
+        clearResearchResultSelection(appStore, "solver");
+      } catch (error) {
+        statusText.value =
+          error instanceof Error
+            ? `Failed to load preset before batch: ${error.message}`
+            : `Failed to load preset before batch: ${String(error)}`;
+        return;
+      }
+
       const validationBoard =
-        "parsedBoard" in activeFlops.value[0]
-          ? activeFlops.value[0].parsedBoard
-          : parseStudyBoard(activeFlops.value[0].boardText);
+        "parsedBoard" in runFlops[0]
+          ? runFlops[0].parsedBoard
+          : parseStudyBoard(runFlops[0].boardText);
       const configError = checkConfig(config, { boardOverride: validationBoard });
       if (configError) {
         statusText.value = `Current solver config is invalid: ${configError}`;
@@ -810,18 +948,29 @@ export default defineComponent({
       }
 
       isRunning.value = true;
+      stopRequested.value = false;
+      activeRunPresetLabel.value = runPreset.label;
       results.value = [];
-  workerRuntimeText.value = "";
+      workerRuntimeText.value = "";
+      statusText.value = `Loaded ${runPreset.label} into Solver. Starting batch...`;
 
-      const situationKey = getSituationKey();
-      const cachedRuns = forceRecalculate.value
+      const situationKey = computeSituationKey(config, runPreset.id, {
+        targetExploitabilityPercent: runTargetExploitability,
+        maxIterations: runMaxIterations,
+        treeDepth: runTreeDepth,
+      });
+      const cachedRuns = runForceRecalculate
         ? []
         : await getResearchRuns(situationKey);
       const cachedMap = new Map<string, ResearchRunRecord>(
         cachedRuns.map((record) => [record.flopKey, record])
       );
 
-      for (const [index, flop] of activeFlops.value.entries()) {
+      for (const [index, flop] of runFlops.entries()) {
+        if (stopRequested.value) {
+          break;
+        }
+
         const board: number[] =
           "parsedBoard" in flop ? flop.parsedBoard : parseStudyBoard(flop.boardText);
         const treeOverrides: FlopTreeOverrides | undefined = flop.flopBetOverride
@@ -838,7 +987,7 @@ export default defineComponent({
           const cachedSnapshot =
             cachedValue.snapshot ||
             createResearchPresetSnapshot(
-              (cachedMap.get(flopKey)?.presetId || selectedPreset.value.id) as ResearchPresetId,
+              (cachedMap.get(flopKey)?.presetId || runPreset.id) as ResearchPresetId,
               cachedValue.board,
               cachedValue.flop.flopBetOverride
                 ? {
@@ -852,8 +1001,8 @@ export default defineComponent({
             await putResearchRun({
               situationKey,
               flopKey,
-              presetId: cachedMap.get(flopKey)?.presetId || selectedPreset.value.id,
-              presetLabel: cachedMap.get(flopKey)?.presetLabel || selectedPreset.value.label,
+              presetId: cachedMap.get(flopKey)?.presetId || runPreset.id,
+              presetLabel: cachedMap.get(flopKey)?.presetLabel || runPreset.label,
               boardText: cachedMap.get(flopKey)?.boardText || flop.boardText,
               updatedAt: cachedMap.get(flopKey)?.updatedAt || Date.now(),
               value: {
@@ -867,14 +1016,14 @@ export default defineComponent({
             key: resultKey,
             situationKey,
             flopKey,
-            presetLabel: cachedMap.get(flopKey)?.presetLabel || selectedPreset.value.label,
+            presetLabel: cachedMap.get(flopKey)?.presetLabel || runPreset.label,
             flop: cachedValue.flop,
             board: cachedValue.board,
             snapshot: cachedSnapshot,
             outcome: cachedValue.outcome,
             error: cachedValue.error,
           });
-          statusText.value = `CACHE ${index + 1}/${activeFlops.value.length} ${flop.label}`;
+          statusText.value = `CACHE ${index + 1}/${runFlops.length} ${flop.label}`;
           continue;
         }
 
@@ -882,13 +1031,14 @@ export default defineComponent({
 
         try {
           const outcome = await runBatchSolve(snapshot, {
-            numThreads: numThreads.value,
-            targetExploitabilityPercent: targetExploitability.value,
-            maxIterations: maxIterations.value,
-            treeDepth: treeDepth.value,
+            numThreads: runNumThreads,
+            targetExploitabilityPercent: runTargetExploitability,
+            maxIterations: runMaxIterations,
+            treeDepth: runTreeDepth,
             flopIndex: index + 1,
-            flopCount: activeFlops.value.length,
+            flopCount: runFlops.length,
             flopLabel: flop.label,
+            shouldStop: () => stopRequested.value,
             onProgress: (progress) => {
               refreshWorkerRuntimeText();
               statusText.value = `${progress.stage.toUpperCase()} ${progress.flopIndex}/${progress.flopCount} ${progress.flopLabel} | iteration ${progress.currentIteration}/${progress.maxIterations} | exploitability ${formatAdaptive(progress.exploitability)}`;
@@ -908,7 +1058,7 @@ export default defineComponent({
             key: resultKey,
             situationKey,
             flopKey,
-            presetLabel: selectedPreset.value.label,
+            presetLabel: runPreset.label,
             flop,
             board,
             snapshot,
@@ -920,8 +1070,8 @@ export default defineComponent({
           await putResearchRun({
             situationKey,
             flopKey,
-            presetId: selectedPreset.value.id,
-            presetLabel: selectedPreset.value.label,
+            presetId: runPreset.id,
+            presetLabel: runPreset.label,
             boardText: flop.boardText,
             updatedAt: Date.now(),
             value: {
@@ -935,11 +1085,15 @@ export default defineComponent({
           });
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
+          if (stopRequested.value && message === "Batch solve stopped.") {
+            break;
+          }
+
           const batchResult = {
             key: resultKey,
             situationKey,
             flopKey,
-            presetLabel: selectedPreset.value.label,
+            presetLabel: runPreset.label,
             flop,
             board,
             snapshot,
@@ -951,8 +1105,8 @@ export default defineComponent({
           await putResearchRun({
             situationKey,
             flopKey,
-            presetId: selectedPreset.value.id,
-            presetLabel: selectedPreset.value.label,
+            presetId: runPreset.id,
+            presetLabel: runPreset.label,
             boardText: flop.boardText,
             updatedAt: Date.now(),
             value: {
@@ -968,8 +1122,20 @@ export default defineComponent({
 
       isRunning.value = false;
       refreshWorkerRuntimeText();
-      statusText.value = `Batch finished on ${activeFlops.value.length} flops.`;
+      statusText.value = stopRequested.value
+        ? `Batch stopped on ${activeRunPresetLabel.value} with ${results.value.length} flop results kept.`
+        : `Batch finished on ${runFlops.length} flops.`;
+      stopRequested.value = false;
+      activeRunPresetLabel.value = "";
     };
+
+    watch(
+      [situationKey, activeFlopDescriptors],
+      () => {
+        void syncResultsFromCache();
+      },
+      { immediate: true }
+    );
 
     return {
       presets,
@@ -1003,9 +1169,12 @@ export default defineComponent({
       toggleFlop,
       selectAllFlops,
       clearResults,
+      stopResearch,
       openResultPage,
       copyLlmPrompt,
       runResearch,
+      selectedPreset,
+      activeRunPresetLabel,
     };
   },
 });

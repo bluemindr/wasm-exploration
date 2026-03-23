@@ -18,6 +18,9 @@
             </div>
           </div>
           <div class="flex flex-wrap gap-3">
+            <button class="button-base button-blue" @click="openInNewTab">
+              Open In New Tab
+            </button>
             <button class="button-base button-green" @click="backToResearch">
               Back To Research
             </button>
@@ -145,7 +148,13 @@
 import { computed, defineComponent, ref, watch } from "vue";
 import ResearchTreePreview from "./ResearchTreePreview.vue";
 import { getResearchRun, putResearchRun } from "../db";
-import { useConfigStore, useSavedConfigStore, useStore } from "../store";
+import {
+  buildResearchResultUrl,
+  clearResearchResultSelection,
+  useConfigStore,
+  useSavedConfigStore,
+  useStore,
+} from "../store";
 import {
   createResearchPresetSnapshot,
   type FlopStudyItem,
@@ -383,8 +392,7 @@ export default defineComponent({
         store.isFinalizing = false;
         store.isSolverPaused = false;
         store.isSolverFinished = true;
-        store.selectedResearchResult = null;
-        store.navView = "results";
+        clearResearchResultSelection(store, "results", false);
       } catch (error) {
         store.isSolverRunning = false;
         store.isFinalizing = false;
@@ -397,7 +405,15 @@ export default defineComponent({
     };
 
     const backToResearch = () => {
-      store.navView = "research";
+      clearResearchResultSelection(store, "research");
+    };
+
+    const openInNewTab = () => {
+      if (!selection.value) {
+        return;
+      }
+
+      window.open(buildResearchResultUrl(selection.value), "_blank", "noopener");
     };
 
     watch(selection, loadRecord, { immediate: true });
@@ -413,6 +429,7 @@ export default defineComponent({
       formatAdaptive,
       formatPercent,
       backToResearch,
+      openInNewTab,
     };
   },
 });

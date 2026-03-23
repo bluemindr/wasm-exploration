@@ -8,6 +8,7 @@ export type ResearchPresetId =
   | "btn-vs-bb-srp"
   | "co-vs-bb-srp"
   | "utg-vs-bb-srp"
+  | "co-vs-btn-3bet"
   | "bb-vs-btn-3bet"
   | "sb-vs-btn-3bet"
   | "sb-vs-co-3bet"
@@ -142,6 +143,37 @@ export const researchPresets: ResearchPreset[] = [
     ipRiverBet: "50",
     ipRiverRaise: "70, a",
     addAllInThreshold: 150,
+    forceAllInThreshold: 20,
+    mergingThreshold: 10,
+    referenceBoard: "AcKd3h",
+  },
+  {
+    id: "co-vs-btn-3bet",
+    label: "CO vs BTN 3bet Pot",
+    summary: "3bet pot 100BB, BTN 3bet IP à 9BB vs open CO 3BB.",
+    note:
+      "Approximation GTO ouverte pour cash game 100BB avec 3bet IP à 9BB total. Le pot flop vaut 195 et le stack effectif restant 910.",
+    oopRangeText:
+      "77,88,99,TT,JJ,QQ,AJs,AQs,AKs,KQs,QJs,JTs,T9s,98s,AQo,AKo",
+    ipRangeText:
+      "99,TT,JJ,QQ,KK,AA,A5s,A4s,ATs,AJs,AQs,AKs,KTs,KJs,KQs,QTs,QJs,JTs,T9s,98s,AQo,AKo,KQo",
+    startingPot: 195,
+    effectiveStack: 910,
+    rakePercent: 4,
+    rakeCap: 20,
+    oopFlopBet: "33, 50",
+    oopFlopRaise: "70, a",
+    oopTurnBet: "50",
+    oopTurnRaise: "70, a",
+    oopRiverBet: "50, 100",
+    oopRiverRaise: "70, a",
+    ipFlopBet: "33, 50",
+    ipFlopRaise: "70, a",
+    ipTurnBet: "50",
+    ipTurnRaise: "70, a",
+    ipRiverBet: "50, 100",
+    ipRiverRaise: "70, a",
+    addAllInThreshold: 120,
     forceAllInThreshold: 20,
     mergingThreshold: 10,
     referenceBoard: "AcKd3h",

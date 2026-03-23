@@ -101,6 +101,7 @@ export type RunBatchSolveOptions = {
   flopCount: number;
   flopLabel: string;
   onProgress?: (progress: SolverProgress) => void;
+  shouldStop?: () => boolean;
 };
 
 export type SituationKeyOptions = {
@@ -220,6 +221,75 @@ export const computeSituationKey = (
     config.expectedBoardLength,
     config.addedLines,
     config.removedLines,
+    options.targetExploitabilityPercent,
+    options.maxIterations,
+    options.treeDepth,
+  ].join("|");
+
+  return hashString(payload);
+};
+
+export const computeSituationKeyFromSnapshot = (
+  snapshot: Pick<
+    SolverConfigSnapshot,
+    | "rangeRaw"
+    | "startingPot"
+    | "effectiveStack"
+    | "rakePercent"
+    | "rakeCap"
+    | "donkOption"
+    | "oopFlopBet"
+    | "oopFlopRaise"
+    | "oopTurnBet"
+    | "oopTurnRaise"
+    | "oopTurnDonk"
+    | "oopRiverBet"
+    | "oopRiverRaise"
+    | "oopRiverDonk"
+    | "ipFlopBet"
+    | "ipFlopRaise"
+    | "ipTurnBet"
+    | "ipTurnRaise"
+    | "ipRiverBet"
+    | "ipRiverRaise"
+    | "addAllInThreshold"
+    | "forceAllInThreshold"
+    | "mergingThreshold"
+    | "addedLines"
+    | "removedLines"
+  >,
+  presetId: string,
+  options: SituationKeyOptions
+) => {
+  const payload = [
+    presetId,
+    hashFloatArray(snapshot.rangeRaw[0]),
+    hashFloatArray(snapshot.rangeRaw[1]),
+    snapshot.startingPot,
+    snapshot.effectiveStack,
+    snapshot.rakePercent,
+    snapshot.rakeCap,
+    snapshot.donkOption ? 1 : 0,
+    snapshot.oopFlopBet,
+    snapshot.oopFlopRaise,
+    snapshot.oopTurnBet,
+    snapshot.oopTurnRaise,
+    snapshot.oopTurnDonk,
+    snapshot.oopRiverBet,
+    snapshot.oopRiverRaise,
+    snapshot.oopRiverDonk,
+    snapshot.ipFlopBet,
+    snapshot.ipFlopRaise,
+    snapshot.ipTurnBet,
+    snapshot.ipTurnRaise,
+    snapshot.ipRiverBet,
+    snapshot.ipRiverRaise,
+    snapshot.addAllInThreshold,
+    snapshot.forceAllInThreshold,
+    snapshot.mergingThreshold,
+    0,
+    snapshot.addedLines,
+    snapshot.removedLines,
     options.targetExploitabilityPercent,
     options.maxIterations,
     options.treeDepth,
@@ -621,6 +691,10 @@ export const runBatchSolve = async (
   const startedAt = performance.now();
   await solver.allocateMemory(buildStats.compressionEnabled);
 
+  if (options.shouldStop?.()) {
+    throw new Error("Batch solve stopped.");
+  }
+
   let currentIteration = 0;
   let exploitability = Math.max(await solver.exploitability(), 0);
   const target = (snapshot.startingPot * options.targetExploitabilityPercent) / 100;
@@ -636,6 +710,7 @@ export const runBatchSolve = async (
   });
 
   while (
+    !options.shouldStop?.() &&
     currentIteration < options.maxIterations &&
     exploitability > target
   ) {
@@ -654,6 +729,10 @@ export const runBatchSolve = async (
         exploitability,
       });
     }
+  }
+
+  if (options.shouldStop?.()) {
+    throw new Error("Batch solve stopped.");
   }
 
   exploitability = Math.max(await solver.exploitability(), 0);

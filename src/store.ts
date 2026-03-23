@@ -11,6 +11,115 @@ export type ResearchResultSelection = {
   flopLabel: string;
 };
 
+type ResearchResultStoreTarget = {
+  selectedResearchResult: ResearchResultSelection | null;
+  navView: NavView;
+};
+
+const RESEARCH_RESULT_VIEW = "research-result";
+
+const updateResearchResultUrl = (selection: ResearchResultSelection | null) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const url = new URL(window.location.href);
+
+  if (selection) {
+    url.searchParams.set("view", RESEARCH_RESULT_VIEW);
+    url.searchParams.set("situationKey", selection.situationKey);
+    url.searchParams.set("flopKey", selection.flopKey);
+    url.searchParams.set("presetLabel", selection.presetLabel);
+    url.searchParams.set("boardText", selection.boardText);
+    url.searchParams.set("flopLabel", selection.flopLabel);
+  } else {
+    if (url.searchParams.get("view") !== RESEARCH_RESULT_VIEW) {
+      return;
+    }
+
+    url.searchParams.delete("view");
+    url.searchParams.delete("situationKey");
+    url.searchParams.delete("flopKey");
+    url.searchParams.delete("presetLabel");
+    url.searchParams.delete("boardText");
+    url.searchParams.delete("flopLabel");
+  }
+
+  const search = url.searchParams.toString();
+  const nextUrl = `${url.pathname}${search ? `?${search}` : ""}${url.hash}`;
+  window.history.replaceState(null, "", nextUrl);
+};
+
+export const buildResearchResultUrl = (selection: ResearchResultSelection) => {
+  const baseUrl =
+    typeof window === "undefined" ? "http://localhost/" : window.location.href;
+  const url = new URL(baseUrl);
+
+  url.searchParams.set("view", RESEARCH_RESULT_VIEW);
+  url.searchParams.set("situationKey", selection.situationKey);
+  url.searchParams.set("flopKey", selection.flopKey);
+  url.searchParams.set("presetLabel", selection.presetLabel);
+  url.searchParams.set("boardText", selection.boardText);
+  url.searchParams.set("flopLabel", selection.flopLabel);
+
+  return url.toString();
+};
+
+export const parseResearchResultSelectionFromUrl = () => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const url = new URL(window.location.href);
+  if (url.searchParams.get("view") !== RESEARCH_RESULT_VIEW) {
+    return null;
+  }
+
+  const situationKey = url.searchParams.get("situationKey");
+  const flopKey = url.searchParams.get("flopKey");
+  const presetLabel = url.searchParams.get("presetLabel");
+  const boardText = url.searchParams.get("boardText");
+  const flopLabel = url.searchParams.get("flopLabel");
+
+  if (!situationKey || !flopKey || !presetLabel || !boardText || !flopLabel) {
+    return null;
+  }
+
+  return {
+    situationKey,
+    flopKey,
+    presetLabel,
+    boardText,
+    flopLabel,
+  } satisfies ResearchResultSelection;
+};
+
+export const showResearchResult = (
+  store: ResearchResultStoreTarget,
+  selection: ResearchResultSelection,
+  syncUrl = true
+) => {
+  store.selectedResearchResult = selection;
+  store.navView = "results";
+
+  if (syncUrl) {
+    updateResearchResultUrl(selection);
+  }
+};
+
+export const clearResearchResultSelection = (
+  store: ResearchResultStoreTarget,
+  navView: NavView,
+  clearUrl = true
+) => {
+  store.selectedResearchResult = null;
+  store.navView = navView;
+
+  if (clearUrl) {
+    updateResearchResultUrl(null);
+  }
+};
+
 export type SideView =
   | "about"
   | "oop-range"
