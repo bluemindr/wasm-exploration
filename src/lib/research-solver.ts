@@ -126,6 +126,8 @@ type ParsedResults = {
 
 const maxMemoryUsage = 3.9 * 1024 * 1024 * 1024;
 
+const persistenceCompressionLevel = -1;
+
 const hashString = (value: string) => {
   let hash = 2166136261;
   for (let i = 0; i < value.length; ++i) {
@@ -691,6 +693,28 @@ export const runBatchSolve = async (
       ...rootSummary,
       boardText: boardToText(snapshot.board).join(" "),
     },
+  };
+};
+
+export const exportSolvedGame = async () => {
+  const solver = getCurrentHandler();
+  return (await solver.saveGame(persistenceCompressionLevel)) as ArrayBuffer;
+};
+
+export const loadSerializedGame = async (
+  serializedGame: Uint8Array,
+  numThreads: number
+) => {
+  await init(numThreads);
+  const solver = getCurrentHandler();
+  const errorString = await solver.loadGame(serializedGame, maxMemoryUsage);
+
+  if (errorString) {
+    throw new Error(errorString);
+  }
+
+  return {
+    exploitability: Math.max(await solver.exploitability(), 0),
   };
 };
 

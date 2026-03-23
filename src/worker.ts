@@ -126,6 +126,15 @@ const createHandler = (mod: Mod) => {
       return game.possible_cards();
     },
 
+    saveGame(compressionLevel: number) {
+      const serializedGame = (game as any).save_game(compressionLevel) as Uint8Array;
+      return Comlink.transfer(serializedGame.buffer, [serializedGame.buffer]);
+    },
+
+    loadGame(data: Uint8Array, maxMemoryUsage: number) {
+      return (game as any).load_game(data, maxMemoryUsage);
+    },
+
     getResults() {
       return game.get_results();
     },

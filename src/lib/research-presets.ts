@@ -272,6 +272,7 @@ export const researchPresets: ResearchPreset[] = [
   },
 ];
 
+// Heuristic aggregation weights for study importance, not exact combinatorial frequencies.
 export const representativeFlops: FlopStudyItem[] = [
   {
     id: "a72r",
@@ -286,7 +287,7 @@ export const representativeFlops: FlopStudyItem[] = [
     boardText: "As8s3d",
     label: "A83tt",
     category: "A-high two-tone",
-    weight: 1,
+    weight: 0.95,
     note: "Capture l'effet des backdoors et des flush draws sur les textures A-high les plus fréquentes.",
   },
   {
@@ -294,7 +295,7 @@ export const representativeFlops: FlopStudyItem[] = [
     boardText: "AcKd3h",
     label: "AK3r",
     category: "Broadway high",
-    weight: 0.9,
+    weight: 0.85,
     note: "Board high card très asymétrique avec forte pression d'avantage de range, bon candidat à l'overbet flop.",
     flopBetOverride: "33, 50, 200",
   },
@@ -303,15 +304,23 @@ export const representativeFlops: FlopStudyItem[] = [
     boardText: "Ad5d4s",
     label: "A54tt",
     category: "A-high dynamic",
-    weight: 0.8,
+    weight: 0.65,
     note: "Texture A-high mais plus connectée, utile pour contraster avec les A-high secs.",
+  },
+  {
+    id: "at6tt",
+    boardText: "AsTd6d",
+    label: "AT6tt",
+    category: "A-high broadway",
+    weight: 0.75,
+    note: "Très bon représentant des A-high two-tone avec broadway haute et carte moyenne, où la range de c-bet reste forte mais moins triviale que sur A72.",
   },
   {
     id: "k83r",
     boardText: "Kh8d3c",
     label: "K83r",
     category: "K-high dry",
-    weight: 0.9,
+    weight: 0.8,
     note: "Archétype K-high sec où l'overbet flop mérite d'être testé explicitement.",
     flopBetOverride: "33, 50, 200",
   },
@@ -324,11 +333,19 @@ export const representativeFlops: FlopStudyItem[] = [
     note: "Version two-tone du K-high utile pour comparer l'effet des flush draws sur la simplification de c-bet.",
   },
   {
+    id: "k96tt",
+    boardText: "Kh9h6d",
+    label: "K96tt",
+    category: "K-high dynamic",
+    weight: 0.65,
+    note: "Texture K-high two-tone plus vivante que K72, utile pour observer l'impact combiné des tirages couleur et des straight draws intermédiaires.",
+  },
+  {
     id: "kq3r",
     boardText: "KsQc3d",
     label: "KQ3r",
     category: "Broadway high",
-    weight: 0.8,
+    weight: 0.7,
     note: "Board broadway sec où les stratégies small bet et check-back polarisé s'opposent souvent.",
   },
   {
@@ -336,7 +353,7 @@ export const representativeFlops: FlopStudyItem[] = [
     boardText: "KdJh9h",
     label: "KJ9tt",
     category: "Broadway dynamic",
-    weight: 0.7,
+    weight: 0.55,
     note: "Très utile pour observer comment la connectivité réduit la simplification high-card.",
   },
   {
@@ -344,7 +361,7 @@ export const representativeFlops: FlopStudyItem[] = [
     boardText: "Qh7h6d",
     label: "Q76tt",
     category: "Middle dynamic",
-    weight: 0.7,
+    weight: 0.5,
     note: "Board intermédiaire avec tirages nombreux et avantages de nut plus partagés.",
   },
   {
@@ -352,7 +369,7 @@ export const representativeFlops: FlopStudyItem[] = [
     boardText: "Js8d6c",
     label: "J86r",
     category: "Middle connected",
-    weight: 0.6,
+    weight: 0.45,
     note: "Intermédiaire rainbow, souvent bon test pour voir si la stratégie s'équilibre entre bet et check.",
   },
   {
@@ -360,7 +377,7 @@ export const representativeFlops: FlopStudyItem[] = [
     boardText: "Th9h5d",
     label: "T95tt",
     category: "Low dynamic",
-    weight: 0.6,
+    weight: 0.4,
     note: "Texture dynamique basse où les ranges de défense conservent beaucoup d'équité réelle.",
   },
   {
@@ -368,7 +385,7 @@ export const representativeFlops: FlopStudyItem[] = [
     boardText: "9h8d7c",
     label: "987r",
     category: "Very connected",
-    weight: 0.5,
+    weight: 0.35,
     note: "Board très connecté, utile pour opposer à la simplification des high-card boards.",
   },
   {
@@ -376,7 +393,7 @@ export const representativeFlops: FlopStudyItem[] = [
     boardText: "7h6d5c",
     label: "765r",
     category: "Very connected",
-    weight: 0.4,
+    weight: 0.25,
     note: "Moins fréquent comme archétype représentatif, mais nécessaire comme point d'ancrage pour les boards bas et connectés.",
   },
   {
@@ -384,7 +401,7 @@ export const representativeFlops: FlopStudyItem[] = [
     boardText: "8h4d2c",
     label: "842r",
     category: "Low dry",
-    weight: 0.6,
+    weight: 0.45,
     note: "Board bas et sec pour comparer aux low connected et aux monotones.",
   },
   {
@@ -392,7 +409,7 @@ export const representativeFlops: FlopStudyItem[] = [
     boardText: "6h3h2d",
     label: "632tt",
     category: "Low wheel",
-    weight: 0.5,
+    weight: 0.3,
     note: "Archetype low wheel avec interaction forte sur les petits tirages et les wheel draws.",
   },
   {
@@ -400,7 +417,7 @@ export const representativeFlops: FlopStudyItem[] = [
     boardText: "Qs8s4s",
     label: "Q84m",
     category: "Monotone disconnected",
-    weight: 0.5,
+    weight: 0.28,
     note: "Monotone non As, volontairement choisi pour tester la simplification attendue des c-bets de range.",
   },
   {
@@ -408,7 +425,7 @@ export const representativeFlops: FlopStudyItem[] = [
     boardText: "9h6h4h",
     label: "964m",
     category: "Monotone middling",
-    weight: 0.4,
+    weight: 0.22,
     note: "Monotone plus connecté pour vérifier à quel point la simplification monotone tient quand la structure s'anime.",
   },
 ];

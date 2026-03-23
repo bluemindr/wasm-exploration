@@ -1,6 +1,7 @@
 extern crate wasm_bindgen;
 use postflop_solver::*;
 use wasm_bindgen::prelude::*;
+use std::io::Cursor;
 
 #[cfg(not(feature = "rayon"))]
 struct DummyPool;
@@ -314,6 +315,35 @@ impl GameManager {
 
     pub fn possible_cards(&self) -> u64 {
         self.game.possible_cards()
+    }
+
+    pub fn save_game(&self, compression_level: i32) -> Result<Box<[u8]>, String> {
+        let mut writer = Vec::new();
+        let compression_level = if compression_level < 0 {
+            None
+        } else {
+            Some(compression_level)
+        };
+
+        save_data_into_std_write(&self.game, "", &mut writer, compression_level)?;
+        Ok(writer.into_boxed_slice())
+    }
+
+    pub fn load_game(&mut self, data: &[u8], max_memory_usage: f64) -> Option<String> {
+        let max_memory_usage = if max_memory_usage <= 0.0 {
+            None
+        } else {
+            Some(max_memory_usage as u64)
+        };
+
+        let mut reader = Cursor::new(data);
+        match load_data_from_std_read::<PostFlopGame, _>(&mut reader, max_memory_usage) {
+            Ok((game, _)) => {
+                self.game = game;
+                None
+            }
+            Err(error) => Some(error),
+        }
     }
 
     pub fn get_results(&mut self) -> Box<[f64]> {

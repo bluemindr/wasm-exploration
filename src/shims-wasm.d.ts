@@ -33,6 +33,8 @@ declare module "../../pkg/tree/tree" {
 declare module "../pkg/solver-st/solver.js" {
   export class GameManager {
     static new(): GameManager;
+    save_game(compressionLevel: number): Uint8Array;
+    load_game(data: Uint8Array, maxMemoryUsage: number): string | null;
   }
 
   const init: () => Promise<void>;
@@ -42,6 +44,8 @@ declare module "../pkg/solver-st/solver.js" {
 declare module "../pkg/solver-mt/solver.js" {
   export class GameManager {
     static new(): GameManager;
+    save_game(compressionLevel: number): Uint8Array;
+    load_game(data: Uint8Array, maxMemoryUsage: number): string | null;
   }
 
   export const initThreadPool: (numThreads: number) => Promise<void>;

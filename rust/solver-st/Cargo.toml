@@ -10,7 +10,9 @@ crate-type = ["cdylib"]
 path = "../solver-src/lib.rs"
 
 [dependencies]
-postflop-solver = { git = "https://github.com/b-inary/postflop-solver", features = ["custom-alloc"], default-features = false }
+bincode = "=2.0.0-rc.3"
+bincode_derive = "=2.0.0-rc.3"
+postflop-solver = { git = "https://github.com/b-inary/postflop-solver", features = ["bincode", "custom-alloc"], default-features = false }
 wasm-bindgen = "=0.2.92"
 
 [profile.release]

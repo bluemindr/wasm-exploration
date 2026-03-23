@@ -85,10 +85,10 @@
                     Pot
                   </div>
                   <div class="mt-1 font-semibold">{{ preset.startingPot }}</div>
+                      type FlopStudyItem,
                 </div>
                 <div>
                   <div class="text-xs uppercase tracking-[0.2em] text-slate-400">
-                    Stack
                   </div>
                   <div class="mt-1 font-semibold">{{ preset.effectiveStack }}</div>
                 </div>
@@ -459,6 +459,7 @@ import {
   type ResearchPresetId,
 } from "../lib/research-presets";
 import {
+  exportSolvedGame,
   computeFlopKey,
   computeSituationKey,
   captureConfigSnapshot,
@@ -493,9 +494,13 @@ type PersistedBatchValue = {
   flop: FlopStudyItem;
   board: number[];
   snapshot?: SolverConfigSnapshot;
+  serializedGame?: ArrayBuffer;
   outcome: SolveOutcome | null;
   error: string | null;
 };
+
+const cloneBinary = (value: Uint8Array) =>
+  value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength);
 
 type AggregateAction = {
   label: string;
@@ -891,6 +896,14 @@ export default defineComponent({
           });
 
           outcome.rootSummary.actions = normalizeActions(outcome.rootSummary.actions);
+          let serializedGame: ArrayBuffer | undefined;
+
+          try {
+            serializedGame = await exportSolvedGame();
+          } catch (error) {
+            console.warn("Failed to persist serialized solver tree", error);
+          }
+
           const batchResult = {
             key: resultKey,
             situationKey,
@@ -915,6 +928,7 @@ export default defineComponent({
               flop,
               board,
               snapshot,
+              serializedGame,
               outcome,
               error: null,
             } satisfies PersistedBatchValue,
