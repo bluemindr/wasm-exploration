@@ -56,17 +56,28 @@
                 Persisted Summary
               </div>
               <div class="mt-2 text-sm text-slate-600">
-                Ce run n'a pas encore d'arbre complet sérialisé. L'ouverture native utilise donc le
-                fallback de compatibilité.
+                {{
+                  persistedValue.serializedGame
+                    ? "Le tree sérialisé est disponible et peut être rouvert sans recalcul."
+                    : "Aucun tree sérialisé disponible pour ce run. Le résumé persistant reste consultable sans recalcul."
+                }}
               </div>
             </div>
             <div class="flex flex-wrap gap-3">
               <button
                 class="button-base button-blue"
-                :disabled="isOpeningNative"
+                :disabled="isOpeningNative || !persistedValue.serializedGame"
                 @click="openNativeResults"
               >
-                {{ isOpeningNative ? "Opening Native Results..." : "Open Native Results Interface" }}
+                {{ isOpeningNative ? "Opening Native Results..." : "Open Persisted Native Results" }}
+              </button>
+              <button
+                v-if="!persistedValue.serializedGame"
+                class="button-base button-red"
+                :disabled="isOpeningNative"
+                @click="rebuildNativeResults"
+              >
+                {{ isOpeningNative ? "Rebuilding Native Results..." : "Rebuild Native Results" }}
               </button>
             </div>
           </div>
@@ -98,30 +109,67 @@
             </div>
           </div>
 
-          <div class="mt-5 grid gap-3 lg:grid-cols-3">
-            <div
-              v-for="action in persistedValue.outcome.rootSummary.actions"
-              :key="action.label"
-              class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4"
-            >
-              <div class="flex items-start justify-between gap-3">
-                <div>
-                  <div class="text-base font-bold text-slate-900">
-                    {{ action.label }}
+          <div class="mt-5 grid gap-4 lg:grid-cols-2">
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div class="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">OOP flop</div>
+              <div class="mt-3 space-y-3">
+                <div
+                  v-for="action in getFlopPlayerSummary('oop').actions"
+                  :key="`oop-${action.label}`"
+                  class="rounded-2xl border border-slate-200 bg-white px-4 py-4"
+                >
+                  <div class="flex items-start justify-between gap-3">
+                    <div>
+                      <div class="text-base font-bold text-slate-900">
+                        {{ action.label }}
+                      </div>
+                      <div class="text-sm text-slate-500">
+                        EV {{ action.ev === null ? '-' : formatAdaptive(action.ev) }}
+                      </div>
+                    </div>
+                    <div class="text-right text-2xl font-black text-slate-900">
+                      {{ formatPercent(action.frequency) }}
+                    </div>
                   </div>
-                  <div class="text-sm text-slate-500">
-                    EV {{ action.ev === null ? '-' : formatAdaptive(action.ev) }}
+                  <div class="mt-3 h-2.5 rounded-full bg-slate-200">
+                    <div
+                      class="h-2.5 rounded-full bg-[linear-gradient(90deg,_#1d4ed8_0%,_#38bdf8_100%)]"
+                      :style="{ width: `${Math.max(2, action.frequency * 100)}%` }"
+                    ></div>
                   </div>
-                </div>
-                <div class="text-right text-2xl font-black text-slate-900">
-                  {{ formatPercent(action.frequency) }}
                 </div>
               </div>
-              <div class="mt-3 h-2.5 rounded-full bg-slate-200">
+            </div>
+
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div class="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">IP flop</div>
+              <div class="mt-1 text-xs text-slate-500">{{ getFlopPlayerSummary('ip').contextLabel || 'After OOP check' }}</div>
+              <div class="mt-3 space-y-3">
                 <div
-                  class="h-2.5 rounded-full bg-[linear-gradient(90deg,_#1d4ed8_0%,_#38bdf8_100%)]"
-                  :style="{ width: `${Math.max(2, action.frequency * 100)}%` }"
-                ></div>
+                  v-for="action in getFlopPlayerSummary('ip').actions"
+                  :key="`ip-${action.label}`"
+                  class="rounded-2xl border border-slate-200 bg-white px-4 py-4"
+                >
+                  <div class="flex items-start justify-between gap-3">
+                    <div>
+                      <div class="text-base font-bold text-slate-900">
+                        {{ action.label }}
+                      </div>
+                      <div class="text-sm text-slate-500">
+                        EV {{ action.ev === null ? '-' : formatAdaptive(action.ev) }}
+                      </div>
+                    </div>
+                    <div class="text-right text-2xl font-black text-slate-900">
+                      {{ formatPercent(action.frequency) }}
+                    </div>
+                  </div>
+                  <div class="mt-3 h-2.5 rounded-full bg-slate-200">
+                    <div
+                      class="h-2.5 rounded-full bg-[linear-gradient(90deg,_#92400e_0%,_#f59e0b_100%)]"
+                      :style="{ width: `${Math.max(2, action.frequency * 100)}%` }"
+                    ></div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -164,6 +212,7 @@ import {
   exportSolvedGame,
   loadSerializedGame,
   replaySolvedResult,
+  type FlopPlayerSummary,
   type SolveOutcome,
   type SolverConfigSnapshot,
 } from "../lib/research-solver";
@@ -176,6 +225,12 @@ type PersistedResearchValue = {
   outcome: SolveOutcome | null;
   error: string | null;
 };
+
+const emptyFlopPlayerSummary = (player: "oop" | "ip"): FlopPlayerSummary => ({
+  player,
+  actions: [],
+  contextLabel: player === "ip" ? "After OOP check" : null,
+});
 
 const resultViewerThreads =
   typeof SharedArrayBuffer !== "undefined" && window.crossOriginIsolated === true
@@ -251,6 +306,23 @@ export default defineComponent({
 
     const selection = computed(() => store.selectedResearchResult);
 
+    const getFlopPlayerSummary = (player: "oop" | "ip"): FlopPlayerSummary => {
+      const summary = persistedValue.value?.outcome?.rootSummary.flopPlayerSummaries?.[player];
+      if (summary) {
+        return summary;
+      }
+
+      if (player === "oop") {
+        return {
+          player: "oop",
+          actions: persistedValue.value?.outcome?.rootSummary.actions || [],
+          contextLabel: null,
+        };
+      }
+
+      return emptyFlopPlayerSummary("ip");
+    };
+
     const loadRecord = async () => {
       if (!selection.value) {
         loadError.value = "No research flop selected.";
@@ -296,7 +368,9 @@ export default defineComponent({
 
         persistedValue.value = value;
         persistedSnapshot.value = snapshot;
-        await openNativeResults(record, value, snapshot);
+        progressText.value = value.serializedGame
+          ? "Saved result tree is ready to open."
+          : "Persisted summary loaded. Open the native interface only if needed.";
       } catch (error) {
         loadError.value = error instanceof Error ? error.message : String(error);
       } finally {
@@ -307,10 +381,17 @@ export default defineComponent({
     const openNativeResults = async (
       existingRecord = null as Awaited<ReturnType<typeof getResearchRun>> | null,
       existingValue = persistedValue.value,
-      existingSnapshot = persistedSnapshot.value
+      existingSnapshot = persistedSnapshot.value,
+      allowReplay = false
     ) => {
       if (!existingValue?.outcome || !existingSnapshot) {
         loadError.value = "Persisted flop result is not ready.";
+        return;
+      }
+
+      if (!existingValue.serializedGame && !allowReplay) {
+        loadError.value =
+          "No serialized tree is stored for this run. Use the explicit rebuild action only if you want to recompute the native interface.";
         return;
       }
 
@@ -332,7 +413,7 @@ export default defineComponent({
             resultViewerThreads
           );
           progressText.value = "Opening native Results interface...";
-        } else {
+        } else if (allowReplay) {
           await replaySolvedResult(
             existingSnapshot,
             {
@@ -404,6 +485,10 @@ export default defineComponent({
       }
     };
 
+    const rebuildNativeResults = async () => {
+      await openNativeResults(null, persistedValue.value, persistedSnapshot.value, true);
+    };
+
     const backToResearch = () => {
       clearResearchResultSelection(store, "research");
     };
@@ -425,7 +510,9 @@ export default defineComponent({
       loadError,
       progressText,
       persistedValue,
+      getFlopPlayerSummary,
       openNativeResults,
+      rebuildNativeResults,
       formatAdaptive,
       formatPercent,
       backToResearch,

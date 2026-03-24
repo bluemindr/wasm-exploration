@@ -14,6 +14,11 @@ export type ResearchPresetId =
   | "sb-vs-co-3bet"
   | "sb-vs-utg-3bet";
 
+export const isSingleRaisedPotResearchPreset = (presetId: ResearchPresetId) =>
+  presetId === "btn-vs-bb-srp" ||
+  presetId === "co-vs-bb-srp" ||
+  presetId === "utg-vs-bb-srp";
+
 export type ResearchPreset = {
   id: ResearchPresetId;
   label: string;
@@ -61,22 +66,22 @@ export const researchPresets: ResearchPreset[] = [
     note:
       "Approximation GTO ouverte pour cash game 100BB avec open 3x. Le pot flop vaut 65 et le stack effectif restant 970.",
     oopRangeText:
-      "22+,A2s+,K4s+,Q7s+,J7s+,T7s+,97s+,86s+,76s,65s,54s,43s,A5o+,A8o+,K9o+,Q9o+,J9o+,T9o,98o,87o",
+      "77-22,A3s-A2s,A9s-A6s,K9s-K4s,Q9s-Q7s,J9s-J7s,T8s-T7s,97s+,86s+,76s,65s,54s,43s,AJo-A5o,KJo-K9o,Q9o+,J9o+,T9o,98o,87o",
     ipRangeText:
       "22+,A2s+,K2s+,Q5s+,J7s+,T7s+,97s+,86s+,75s+,64s+,53s+,43s,A2o+,K7o+,Q9o+,J9o+,T9o",
     startingPot: 65,
     effectiveStack: 970,
     rakePercent: 5,
     rakeCap: 30,
-    oopFlopBet: "33, 50",
+    oopFlopBet: "33",
     oopFlopRaise: "70, a",
-    oopTurnBet: "50, 100",
+    oopTurnBet: "50, 200",
     oopTurnRaise: "70, a",
     oopRiverBet: "50",
     oopRiverRaise: "70, a",
-    ipFlopBet: "33, 50",
+    ipFlopBet: "50, 200",
     ipFlopRaise: "70, a",
-    ipTurnBet: "50, 100",
+    ipTurnBet: "50, 100, 200",
     ipTurnRaise: "70, a",
     ipRiverBet: "50",
     ipRiverRaise: "70, a",
@@ -92,22 +97,22 @@ export const researchPresets: ResearchPreset[] = [
     note:
       "Approximation GTO ouverte pour cash game 100BB avec open CO 3x. Le pot flop vaut 65 et le stack effectif restant 970.",
     oopRangeText:
-      "22+,A2s+,K5s+,Q8s+,J8s+,T8s+,97s+,87s,76s,65s,54s,A7o+,A9o+,KTo+,QTo+,JTo,98o",
+      "88-22,A3s-A2s,ATs-A6s,K9s-K5s,Q9s-Q8s,J9s-J8s,T8s,97s+,87s,76s,65s,54s,AJo-A7o,KJo-KTo,QTo+,JTo,98o",
     ipRangeText:
       "22+,A2s+,K5s+,Q7s+,J8s+,T8s+,98s,87s,76s,65s,54s,A8o+,ATo+,KTo+,QTo+,JTo",
     startingPot: 65,
     effectiveStack: 970,
     rakePercent: 5,
     rakeCap: 30,
-    oopFlopBet: "33, 50",
+    oopFlopBet: "33",
     oopFlopRaise: "70, a",
-    oopTurnBet: "50, 100",
+    oopTurnBet: "50, 200",
     oopTurnRaise: "70, a",
     oopRiverBet: "50",
     oopRiverRaise: "70, a",
-    ipFlopBet: "33, 50",
+    ipFlopBet: "50, 200",
     ipFlopRaise: "70, a",
-    ipTurnBet: "50, 100",
+    ipTurnBet: "50, 100, 200",
     ipTurnRaise: "70, a",
     ipRiverBet: "50",
     ipRiverRaise: "70, a",
@@ -123,22 +128,22 @@ export const researchPresets: ResearchPreset[] = [
     note:
       "Approximation GTO ouverte pour cash game 100BB avec open UTG 3x. Le pot flop vaut 65 et le stack effectif restant 970.",
     oopRangeText:
-      "22+,A2s+,K7s+,Q9s+,J9s+,T8s+,98s,87s,76s,65s,A9o+,ATo+,KJo+,QJo",
+      "99-22,A3s-A2s,AJs-A6s,KJs-K7s,Q9s+,J9s+,T8s+,98s,87s,76s,65s,AQo-A9o,KJo+,QJo",
     ipRangeText:
       "55+,A2s+,ATs+,KTs+,QTs+,JTs,T9s,98s,AQo+,AJo,KQo",
     startingPot: 65,
     effectiveStack: 970,
     rakePercent: 5,
     rakeCap: 30,
-    oopFlopBet: "33, 50",
+    oopFlopBet: "33",
     oopFlopRaise: "70, a",
-    oopTurnBet: "50, 100",
+    oopTurnBet: "50, 200",
     oopTurnRaise: "70, a",
     oopRiverBet: "50",
     oopRiverRaise: "70, a",
-    ipFlopBet: "33, 50",
+    ipFlopBet: "50, 200",
     ipFlopRaise: "70, a",
-    ipTurnBet: "50, 100",
+    ipTurnBet: "50, 100, 200",
     ipTurnRaise: "70, a",
     ipRiverBet: "50",
     ipRiverRaise: "70, a",
@@ -329,7 +334,7 @@ export const representativeFlops: FlopStudyItem[] = [
     category: "Broadway high",
     weight: 0.85,
     note: "Board high card très asymétrique avec forte pression d'avantage de range, bon candidat à l'overbet flop.",
-    flopBetOverride: "33, 50, 200",
+    flopBetOverride: "33, 200",
   },
   {
     id: "a54tt",
@@ -354,7 +359,7 @@ export const representativeFlops: FlopStudyItem[] = [
     category: "K-high dry",
     weight: 0.8,
     note: "Archétype K-high sec où l'overbet flop mérite d'être testé explicitement.",
-    flopBetOverride: "33, 50, 200",
+    flopBetOverride: "33, 200",
   },
   {
     id: "k72tt",

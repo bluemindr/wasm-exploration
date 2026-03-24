@@ -55,6 +55,12 @@ export type RootActionSummary = {
   ev: number | null;
 };
 
+export type FlopPlayerSummary = {
+  player: "oop" | "ip";
+  actions: RootActionSummary[];
+  contextLabel: string | null;
+};
+
 export type DecisionTreeNode = {
   path: string[];
   player: "oop" | "ip" | "chance" | "terminal";
@@ -71,6 +77,10 @@ export type RootSummary = {
   ev: [number, number];
   eqr: [number, number];
   actions: RootActionSummary[];
+  flopPlayerSummaries?: {
+    oop: FlopPlayerSummary;
+    ip: FlopPlayerSummary;
+  };
   boardText: string;
   treePreview: DecisionTreeNode | null;
 };
@@ -100,6 +110,7 @@ export type RunBatchSolveOptions = {
   flopIndex: number;
   flopCount: number;
   flopLabel: string;
+  forceCompression?: boolean;
   onProgress?: (progress: SolverProgress) => void;
   shouldStop?: () => boolean;
 };
@@ -489,6 +500,58 @@ const parseResults = async (): Promise<ParsedResults> => {
   };
 };
 
+const summarizePlayerActionsAtHistory = async (
+  history: number[] = []
+): Promise<{
+  currentPlayer: "oop" | "ip" | "chance" | "terminal";
+  actions: RootActionSummary[];
+}> => {
+  const solver = getCurrentHandler();
+  await solver.applyHistory(new Uint32Array(history));
+
+  const parsed = await parseResults();
+  if (parsed.currentPlayer !== "oop" && parsed.currentPlayer !== "ip") {
+    return {
+      currentPlayer: parsed.currentPlayer,
+      actions: [],
+    };
+  }
+
+  const actionValues: RootActionSummary[] = (
+    await solver.actionsAfter(new Uint32Array())
+  )
+    .split("/")
+    .filter(Boolean)
+    .map(parseActionString);
+
+  const playerIndex = parsed.currentPlayer === "oop" ? 0 : 1;
+  const playerLength = parsed.cards[playerIndex].length;
+
+  const actions = actionValues.map((action: RootActionSummary) => {
+    const start = action.index * playerLength;
+    const end = start + playerLength;
+    const strategySlice = parsed.strategy.slice(start, end);
+    const actionEvSlice = parsed.actionEv.slice(start, end);
+
+    const frequency = safeAverage(strategySlice, parsed.normalizer[playerIndex]);
+    const actionEv =
+      actionEvSlice.length === playerLength
+        ? safeAverage(actionEvSlice, parsed.normalizer[playerIndex])
+        : Number.NaN;
+
+    return {
+      ...action,
+      frequency: isFinite(frequency) ? frequency : 0,
+      ev: isFinite(actionEv) ? actionEv : null,
+    };
+  });
+
+  return {
+    currentPlayer: parsed.currentPlayer,
+    actions,
+  };
+};
+
 const summarizeRoot = async (
   treeDepth: number,
   board: number[]
@@ -532,37 +595,39 @@ const summarizeRoot = async (
     }
   }
 
-  let actions: RootActionSummary[] = [];
-  if (parsed.currentPlayer === "oop" || parsed.currentPlayer === "ip") {
-    const actionValues: RootActionSummary[] = (
-      await solver.actionsAfter(new Uint32Array())
-    )
-      .split("/")
-      .filter(Boolean)
-      .map(parseActionString);
+  const rootActionSummary = await summarizePlayerActionsAtHistory();
+  const actions = rootActionSummary.actions;
 
-    const playerIndex = parsed.currentPlayer === "oop" ? 0 : 1;
-    const playerLength = parsed.cards[playerIndex].length;
+  const oopFlopSummary = {
+    player: "oop" as const,
+    actions: rootActionSummary.currentPlayer === "oop" ? rootActionSummary.actions : [],
+    contextLabel: null,
+  };
 
-    actions = actionValues.map((action: RootActionSummary) => {
-      const start = action.index * playerLength;
-      const end = start + playerLength;
-      const strategySlice = parsed.strategy.slice(start, end);
-      const actionEvSlice = parsed.actionEv.slice(start, end);
+  let ipFlopSummary = {
+    player: "ip" as const,
+    actions: rootActionSummary.currentPlayer === "ip" ? rootActionSummary.actions : [],
+    contextLabel: null as string | null,
+  };
 
-      const frequency = safeAverage(strategySlice, parsed.normalizer[playerIndex]);
-      const actionEv =
-        actionEvSlice.length === playerLength
-          ? safeAverage(actionEvSlice, parsed.normalizer[playerIndex])
-          : Number.NaN;
+  if (rootActionSummary.currentPlayer === "oop") {
+    const oopCheckAction = rootActionSummary.actions.find(
+      (action) => action.amount === 0 || action.name === "Check"
+    );
 
-      return {
-        ...action,
-        frequency: isFinite(frequency) ? frequency : 0,
-        ev: isFinite(actionEv) ? actionEv : null,
-      };
-    });
+    if (oopCheckAction) {
+      const ipActionSummary = await summarizePlayerActionsAtHistory([oopCheckAction.index]);
+      if (ipActionSummary.currentPlayer === "ip") {
+        ipFlopSummary = {
+          player: "ip",
+          actions: ipActionSummary.actions,
+          contextLabel: `After ${oopCheckAction.label}`,
+        };
+      }
+    }
   }
+
+  await solver.applyHistory(new Uint32Array());
 
   let treePreview: DecisionTreeNode | null = null;
   try {
@@ -578,6 +643,10 @@ const summarizeRoot = async (
     ev,
     eqr,
     actions,
+    flopPlayerSummaries: {
+      oop: oopFlopSummary,
+      ip: ipFlopSummary,
+    },
     boardText: boardToText(board).join(" "),
     treePreview,
   };
@@ -677,6 +746,9 @@ export const runBatchSolve = async (
 
   const buildStats = await buildTree(snapshot, options.numThreads);
   const solver = getCurrentHandler();
+  const compressionEnabled = options.forceCompression
+    ? true
+    : buildStats.compressionEnabled;
 
   options.onProgress?.({
     stage: "allocating",
@@ -689,7 +761,7 @@ export const runBatchSolve = async (
   });
 
   const startedAt = performance.now();
-  await solver.allocateMemory(buildStats.compressionEnabled);
+  await solver.allocateMemory(compressionEnabled);
 
   if (options.shouldStop?.()) {
     throw new Error("Batch solve stopped.");
@@ -767,7 +839,7 @@ export const runBatchSolve = async (
     elapsedTimeMs,
     memoryUsage: buildStats.memoryUsage,
     memoryUsageCompressed: buildStats.memoryUsageCompressed,
-    compressionEnabled: buildStats.compressionEnabled,
+    compressionEnabled,
     rootSummary: {
       ...rootSummary,
       boardText: boardToText(snapshot.board).join(" "),

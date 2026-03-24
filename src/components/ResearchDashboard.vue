@@ -23,13 +23,17 @@
               Current research rules
             </div>
             <div class="text-sm leading-6 text-slate-200">
-              Flop base: 33%, 50%
+              SRP flop OR: 50%, 200%
               <br />
-              Flop overbet: 200% only on AK3r / K83r archetypes
+              SRP flop BB lead: 33%
               <br />
-              Turn: 50%, 100%
+              SRP turn caller: 50%, 200%
+              <br />
+              SRP turn OR: 50%, 100%, 200%
               <br />
               River: 50%
+              <br />
+              SRP batch precision: forced 16-bit
               <br />
               Raises: 70% or all-in
             </div>
@@ -120,6 +124,9 @@
           </p>
           <p v-if="workerRuntimeText" class="mt-2 text-sm" :class="workerRuntimeClass">
             {{ workerRuntimeText }}
+          </p>
+          <p v-if="researchInitError" class="mt-2 text-sm font-semibold text-red-700">
+            {{ researchInitError }}
           </p>
 
           <div class="mt-5 grid gap-4 sm:grid-cols-2">
@@ -304,38 +311,89 @@
         </div>
       </section>
 
+      <section
+        v-if="isLoadingCachedResults && !isRunning"
+        class="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
+      >
+        <div class="flex items-center gap-3 text-slate-700">
+          <span class="spinner inline-block"></span>
+          <span class="text-sm font-semibold">Loading persisted research results...</span>
+        </div>
+        <div class="mt-3 text-sm text-slate-500">
+          Fetching cached flops for {{ selectedPreset.label }}.
+        </div>
+      </section>
+
       <section v-if="results.length > 0" class="mt-6 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 class="text-xl font-bold text-slate-900">Aggregate action mix</h2>
+          <h2 class="text-xl font-bold text-slate-900">Aggregate flop mix</h2>
           <p class="mt-1 text-sm text-slate-600">
-            Fréquences moyennes pondérées sur les flops résolus avec succès.
+            Fréquences moyennes pondérées du premier spot flop de chaque joueur.
           </p>
 
-          <div class="mt-5 space-y-4">
-            <div
-              v-for="item in aggregateActions"
-              :key="item.label"
-              class="rounded-2xl border border-slate-200 bg-slate-50 p-4"
-            >
-              <div class="flex items-center justify-between gap-4">
-                <div>
-                  <div class="text-lg font-bold text-slate-900">{{ item.label }}</div>
-                  <div class="text-sm text-slate-500">{{ item.count }} flops</div>
-                </div>
-                <div class="text-right">
-                  <div class="text-2xl font-black text-slate-900">
-                    {{ formatPercent(item.frequency) }}
+          <div class="mt-5 grid gap-5 lg:grid-cols-2">
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div class="text-xs font-semibold uppercase tracking-[0.22em] text-sky-700">OOP flop</div>
+              <div class="mt-4 space-y-4">
+                <div
+                  v-for="item in aggregateFlopSummaries.oop"
+                  :key="`oop-${item.label}`"
+                  class="rounded-2xl border border-slate-200 bg-white p-4"
+                >
+                  <div class="flex items-center justify-between gap-4">
+                    <div>
+                      <div class="text-lg font-bold text-slate-900">{{ item.label }}</div>
+                      <div class="text-sm text-slate-500">{{ item.count }} flops</div>
+                    </div>
+                    <div class="text-right">
+                      <div class="text-2xl font-black text-slate-900">
+                        {{ formatPercent(item.frequency) }}
+                      </div>
+                      <div class="text-sm text-slate-500">
+                        avg EV {{ formatAdaptive(item.ev) }}
+                      </div>
+                    </div>
                   </div>
-                  <div class="text-sm text-slate-500">
-                    avg EV {{ formatAdaptive(item.ev) }}
+                  <div class="mt-3 h-3 rounded-full bg-slate-200">
+                    <div
+                      class="h-3 rounded-full bg-[linear-gradient(90deg,_#0f172a_0%,_#0ea5e9_100%)]"
+                      :style="{ width: `${Math.max(2, item.frequency * 100)}%` }"
+                    ></div>
                   </div>
                 </div>
               </div>
-              <div class="mt-3 h-3 rounded-full bg-slate-200">
+            </div>
+
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div class="text-xs font-semibold uppercase tracking-[0.22em] text-amber-700">IP flop</div>
+              <div class="mt-1 text-xs text-slate-500">Premier spot IP sur le flop, en pratique après check OOP.</div>
+              <div class="mt-4 space-y-4">
                 <div
-                  class="h-3 rounded-full bg-[linear-gradient(90deg,_#0f172a_0%,_#0ea5e9_100%)]"
-                  :style="{ width: `${Math.max(2, item.frequency * 100)}%` }"
-                ></div>
+                  v-for="item in aggregateFlopSummaries.ip"
+                  :key="`ip-${item.label}`"
+                  class="rounded-2xl border border-slate-200 bg-white p-4"
+                >
+                  <div class="flex items-center justify-between gap-4">
+                    <div>
+                      <div class="text-lg font-bold text-slate-900">{{ item.label }}</div>
+                      <div class="text-sm text-slate-500">{{ item.count }} flops</div>
+                    </div>
+                    <div class="text-right">
+                      <div class="text-2xl font-black text-slate-900">
+                        {{ formatPercent(item.frequency) }}
+                      </div>
+                      <div class="text-sm text-slate-500">
+                        avg EV {{ formatAdaptive(item.ev) }}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="mt-3 h-3 rounded-full bg-slate-200">
+                    <div
+                      class="h-3 rounded-full bg-[linear-gradient(90deg,_#92400e_0%,_#f59e0b_100%)]"
+                      :style="{ width: `${Math.max(2, item.frequency * 100)}%` }"
+                    ></div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -425,30 +483,67 @@
               {{ result.error }}
             </div>
 
-            <div v-else class="mt-5 grid gap-3 lg:grid-cols-3">
-              <div
-                v-for="action in result.outcome!.rootSummary.actions"
-                :key="action.label"
-                class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4"
-              >
-                <div class="flex items-start justify-between gap-3">
-                  <div>
-                    <div class="text-base font-bold text-slate-900">
-                      {{ action.label }}
+            <div v-else class="mt-5 grid gap-4 lg:grid-cols-2">
+              <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div class="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">OOP flop</div>
+                <div class="mt-3 space-y-3">
+                  <div
+                    v-for="action in getFlopPlayerActions(result, 'oop')"
+                    :key="`oop-${result.key}-${action.label}`"
+                    class="rounded-2xl border border-slate-200 bg-white px-4 py-4"
+                  >
+                    <div class="flex items-start justify-between gap-3">
+                      <div>
+                        <div class="text-base font-bold text-slate-900">
+                          {{ action.label }}
+                        </div>
+                        <div class="text-sm text-slate-500">
+                          EV {{ action.ev === null ? '-' : formatAdaptive(action.ev) }}
+                        </div>
+                      </div>
+                      <div class="text-right text-2xl font-black text-slate-900">
+                        {{ formatPercent(action.frequency) }}
+                      </div>
                     </div>
-                    <div class="text-sm text-slate-500">
-                      EV {{ action.ev === null ? '-' : formatAdaptive(action.ev) }}
+                    <div class="mt-3 h-2.5 rounded-full bg-slate-200">
+                      <div
+                        class="h-2.5 rounded-full bg-[linear-gradient(90deg,_#1d4ed8_0%,_#38bdf8_100%)]"
+                        :style="{ width: `${Math.max(2, action.frequency * 100)}%` }"
+                      ></div>
                     </div>
-                  </div>
-                  <div class="text-right text-2xl font-black text-slate-900">
-                    {{ formatPercent(action.frequency) }}
                   </div>
                 </div>
-                <div class="mt-3 h-2.5 rounded-full bg-slate-200">
+              </div>
+
+              <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div class="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">IP flop</div>
+                <div class="mt-1 text-xs text-slate-500">{{ getFlopPlayerContext(result, 'ip') }}</div>
+                <div class="mt-3 space-y-3">
                   <div
-                    class="h-2.5 rounded-full bg-[linear-gradient(90deg,_#1d4ed8_0%,_#38bdf8_100%)]"
-                    :style="{ width: `${Math.max(2, action.frequency * 100)}%` }"
-                  ></div>
+                    v-for="action in getFlopPlayerActions(result, 'ip')"
+                    :key="`ip-${result.key}-${action.label}`"
+                    class="rounded-2xl border border-slate-200 bg-white px-4 py-4"
+                  >
+                    <div class="flex items-start justify-between gap-3">
+                      <div>
+                        <div class="text-base font-bold text-slate-900">
+                          {{ action.label }}
+                        </div>
+                        <div class="text-sm text-slate-500">
+                          EV {{ action.ev === null ? '-' : formatAdaptive(action.ev) }}
+                        </div>
+                      </div>
+                      <div class="text-right text-2xl font-black text-slate-900">
+                        {{ formatPercent(action.frequency) }}
+                      </div>
+                    </div>
+                    <div class="mt-3 h-2.5 rounded-full bg-slate-200">
+                      <div
+                        class="h-2.5 rounded-full bg-[linear-gradient(90deg,_#92400e_0%,_#f59e0b_100%)]"
+                        :style="{ width: `${Math.max(2, action.frequency * 100)}%` }"
+                      ></div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -478,6 +573,7 @@ import { getResearchRuns, putResearchRun, type ResearchRunRecord } from "../db";
 import {
   applyResearchPreset,
   createResearchPresetSnapshot,
+  isSingleRaisedPotResearchPreset,
   parseStudyBoard,
   representativeFlops,
   researchPresets,
@@ -491,6 +587,7 @@ import {
   computeSituationKeyFromSnapshot,
   captureConfigSnapshot,
   runBatchSolve,
+  type FlopPlayerSummary,
   type FlopTreeOverrides,
   type SolverConfigSnapshot,
   type SolveOutcome,
@@ -533,6 +630,12 @@ type AggregateAction = {
   count: number;
 };
 
+const emptyFlopPlayerSummary = (player: "oop" | "ip"): FlopPlayerSummary => ({
+  player,
+  actions: [],
+  contextLabel: player === "ip" ? "After OOP check" : null,
+});
+
 const formatPercent = (value: number) => {
   if (!isFinite(value)) return "-";
   return `${(value * 100).toFixed(1)}%`;
@@ -544,6 +647,9 @@ const formatAdaptive = (value: number) => {
 };
 
 const formatMs = (value: number) => `${(value / 1000).toFixed(2)}s`;
+
+const researchPresetCacheKey = (presetId: ResearchPresetId) =>
+  isSingleRaisedPotResearchPreset(presetId) ? `${presetId}:research-16bit` : presetId;
 
 export default defineComponent({
   setup() {
@@ -569,6 +675,7 @@ export default defineComponent({
     const treeDepth = ref(2);
     const forceRecalculate = ref(false);
     const isRunning = ref(false);
+    const isLoadingCachedResults = ref(false);
     const stopRequested = ref(false);
     const activeRunPresetLabel = ref("");
     const workerRuntimeText = ref("");
@@ -580,6 +687,23 @@ export default defineComponent({
     const selectedPreset = computed(
       () => presets.find((preset) => preset.id === selectedPresetId.value) || presets[0]
     );
+
+    const selectedPresetSnapshotState = computed(() => {
+      try {
+        return {
+          snapshot: createResearchPresetSnapshot(selectedPresetId.value),
+          error: "",
+        };
+      } catch (error) {
+        return {
+          snapshot: null,
+          error:
+            error instanceof Error
+              ? `Failed to prepare preset ${selectedPreset.value.label}: ${error.message}`
+              : `Failed to prepare preset ${selectedPreset.value.label}: ${String(error)}`,
+        };
+      }
+    });
 
     const customFlops = computed<CustomFlopStudyItem[]>(() => {
       return customBoardsText.value
@@ -615,17 +739,20 @@ export default defineComponent({
 
     const selectedRepresentativeFlopCount = computed(() => selectedFlopIds.value.length);
 
-    const selectedPresetSnapshot = computed(() =>
-      createResearchPresetSnapshot(selectedPresetId.value)
-    );
+    const researchInitError = computed(() => selectedPresetSnapshotState.value.error);
 
-    const situationKey = computed(() =>
-      computeSituationKeyFromSnapshot(selectedPresetSnapshot.value, selectedPresetId.value, {
+    const situationKey = computed(() => {
+      const snapshot = selectedPresetSnapshotState.value.snapshot;
+      if (!snapshot) {
+        return "";
+      }
+
+      return computeSituationKeyFromSnapshot(snapshot, researchPresetCacheKey(selectedPresetId.value), {
         targetExploitabilityPercent: targetExploitability.value,
         maxIterations: maxIterations.value,
         treeDepth: treeDepth.value,
-      })
-    );
+      });
+    });
 
     const validCustomFlopCount = computed(
       () => customFlops.value.filter((flop) => flop.parsedBoard.length === 3).length
@@ -660,13 +787,33 @@ export default defineComponent({
         .join("\n");
     });
 
-    const aggregateActions = computed<AggregateAction[]>(() => {
+    const getResultFlopPlayerSummary = (
+      result: BatchResult,
+      player: "oop" | "ip"
+    ): FlopPlayerSummary => {
+      const summary = result.outcome?.rootSummary.flopPlayerSummaries?.[player];
+      if (summary) {
+        return summary;
+      }
+
+      if (player === "oop") {
+        return {
+          player: "oop",
+          actions: result.outcome?.rootSummary.actions || [],
+          contextLabel: null,
+        };
+      }
+
+      return emptyFlopPlayerSummary("ip");
+    };
+
+    const aggregatePlayerActions = (player: "oop" | "ip"): AggregateAction[] => {
       const map = new Map<string, { weightedFrequency: number; weightedEv: number; totalWeight: number; count: number }>();
 
       for (const result of results.value) {
         if (!result.outcome) continue;
 
-        for (const action of result.outcome.rootSummary.actions) {
+        for (const action of getResultFlopPlayerSummary(result, player).actions) {
           const current = map.get(action.label) || {
             weightedFrequency: 0,
             weightedEv: 0,
@@ -689,6 +836,13 @@ export default defineComponent({
           count: value.count,
         }))
         .sort((left, right) => right.frequency - left.frequency);
+    };
+
+    const aggregateFlopSummaries = computed(() => {
+      return {
+        oop: aggregatePlayerActions("oop"),
+        ip: aggregatePlayerActions("ip"),
+      };
     });
 
     const llmPrompt = computed(() => {
@@ -715,7 +869,7 @@ export default defineComponent({
           forceAllInThreshold: config.forceAllInThreshold,
           mergingThreshold: config.mergingThreshold,
         },
-        aggregateActions: aggregateActions.value,
+        aggregateActions: aggregateFlopSummaries.value,
         flops: results.value.map((result) => ({
           board: result.flop.boardText,
           category: result.flop.category,
@@ -874,15 +1028,36 @@ export default defineComponent({
         return;
       }
 
-      const cachedRuns = await getResearchRuns(situationKey.value);
-      const cachedMap = new Map<string, ResearchRunRecord>(
-        cachedRuns.map((record) => [record.flopKey, record])
-      );
+      isLoadingCachedResults.value = true;
 
-      results.value = activeFlopDescriptors.value.flatMap((descriptor) => {
-        const record = cachedMap.get(descriptor.flopKey);
-        return record ? [toBatchResult(situationKey.value, descriptor, record)] : [];
-      });
+      if (!situationKey.value) {
+        results.value = [];
+        if (researchInitError.value) {
+          statusText.value = researchInitError.value;
+        }
+        isLoadingCachedResults.value = false;
+        return;
+      }
+
+      try {
+        const cachedRuns = await getResearchRuns(situationKey.value);
+        const cachedMap = new Map<string, ResearchRunRecord>(
+          cachedRuns.map((record) => [record.flopKey, record])
+        );
+
+        results.value = activeFlopDescriptors.value.flatMap((descriptor) => {
+          const record = cachedMap.get(descriptor.flopKey);
+          return record ? [toBatchResult(situationKey.value, descriptor, record)] : [];
+        });
+      } catch (error) {
+        results.value = [];
+        statusText.value =
+          error instanceof Error
+            ? `Failed to load cached research results: ${error.message}`
+            : `Failed to load cached research results: ${String(error)}`;
+      } finally {
+        isLoadingCachedResults.value = false;
+      }
     };
 
     const upsertResult = (result: BatchResult) => {
@@ -907,6 +1082,16 @@ export default defineComponent({
     const normalizeActions = (actions: RootActionSummary[]) => {
       return actions.sort((left, right) => right.frequency - left.frequency);
     };
+
+    const getFlopPlayerActions = (
+      result: BatchResult,
+      player: "oop" | "ip"
+    ) => getResultFlopPlayerSummary(result, player).actions;
+
+    const getFlopPlayerContext = (
+      result: BatchResult,
+      player: "oop" | "ip"
+    ) => getResultFlopPlayerSummary(result, player).contextLabel || "First flop decision";
 
     const runResearch = async () => {
       if (isRunning.value) {
@@ -954,7 +1139,8 @@ export default defineComponent({
       workerRuntimeText.value = "";
       statusText.value = `Loaded ${runPreset.label} into Solver. Starting batch...`;
 
-      const situationKey = computeSituationKey(config, runPreset.id, {
+      const cachePresetId = researchPresetCacheKey(runPreset.id);
+      const situationKey = computeSituationKey(config, cachePresetId, {
         targetExploitabilityPercent: runTargetExploitability,
         maxIterations: runMaxIterations,
         treeDepth: runTreeDepth,
@@ -1038,6 +1224,7 @@ export default defineComponent({
             flopIndex: index + 1,
             flopCount: runFlops.length,
             flopLabel: flop.label,
+            forceCompression: isSingleRaisedPotResearchPreset(runPreset.id),
             shouldStop: () => stopRequested.value,
             onProgress: (progress) => {
               refreshWorkerRuntimeText();
@@ -1150,8 +1337,9 @@ export default defineComponent({
       treeDepth,
       forceRecalculate,
       isRunning,
+      isLoadingCachedResults,
       results,
-      aggregateActions,
+      aggregateFlopSummaries,
       invalidCustomBoards,
       selectedRepresentativeFlopCount,
       validCustomFlopCount,
@@ -1161,6 +1349,7 @@ export default defineComponent({
       progressText,
       workerRuntimeText,
       workerRuntimeClass,
+      researchInitError,
       formatAdaptive,
       formatPercent,
       formatMs,
@@ -1173,6 +1362,8 @@ export default defineComponent({
       openResultPage,
       copyLlmPrompt,
       runResearch,
+      getFlopPlayerActions,
+      getFlopPlayerContext,
       selectedPreset,
       activeRunPresetLabel,
     };
