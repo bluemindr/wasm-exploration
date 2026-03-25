@@ -799,7 +799,9 @@ import {
   getResearchRun,
   getResearchRunByTree,
   getResearchRuns,
+  getResearchRunsByTree,
   putResearchRun,
+  selectPreferredResearchRun,
   type ResearchRunRecord,
 } from "../db";
 import {
@@ -1333,6 +1335,7 @@ export default defineComponent({
     const toResearchResultSelection = (result: BatchResult) => ({
       situationKey: result.situationKey,
       flopKey: result.flopKey,
+      presetId: result.snapshot.addedLines ? "" : selectedPresetId.value, // AddedLines means it might not be a standard preset anymore
       presetLabel: result.presetLabel,
       boardText: result.flop.boardText,
       flopLabel: result.flop.label,
@@ -1356,8 +1359,8 @@ export default defineComponent({
         cachedValue.snapshot ||
         createResearchPresetSnapshot(
           record.presetId as ResearchPresetId,
-          cachedValue.board,
-          cachedValue.flop.flopBetOverride
+          cachedValue.board || parseStudyBoard(record.boardText),
+          cachedValue.flop?.flopBetOverride
             ? {
                 oopFlopBet: cachedValue.flop.flopBetOverride,
                 ipFlopBet: cachedValue.flop.flopBetOverride,
@@ -1371,7 +1374,7 @@ export default defineComponent({
         flopKey: descriptor.flopKey,
         presetLabel: record.presetLabel,
         flop: descriptor.flop,
-        board: cachedValue.board,
+        board: cachedValue.board || parseStudyBoard(record.boardText),
         snapshot: cachedSnapshot,
         outcome: cachedValue.outcome,
         error: cachedValue.error,
@@ -1414,7 +1417,7 @@ export default defineComponent({
 
       isLoadingCachedResults.value = true;
 
-      if (!situationKey.value) {
+      if (!situationKey.value || !treeKey.value) {
         results.value = [];
         if (researchInitError.value) {
           statusText.value = researchInitError.value;
@@ -1427,10 +1430,23 @@ export default defineComponent({
       }
 
       try {
-        const cachedRuns = await getResearchRuns(situationKey.value);
-        const cachedMap = new Map<string, ResearchRunRecord>(
-          cachedRuns.map((record) => [record.flopKey, record])
-        );
+        const cachedBySituation = await getResearchRuns(situationKey.value);
+        const cachedByTree = await getResearchRunsByTree(treeKey.value);
+
+        const cachedMap = new Map<string, ResearchRunRecord>();
+        const allCached = [...cachedByTree, ...cachedBySituation];
+
+        for (const record of allCached) {
+          const existing = cachedMap.get(record.flopKey);
+          if (existing) {
+            const preferred = selectPreferredResearchRun([existing, record]);
+            if (preferred) {
+              cachedMap.set(record.flopKey, preferred);
+            }
+          } else {
+            cachedMap.set(record.flopKey, record);
+          }
+        }
 
         results.value = activeFlopDescriptors.value.flatMap((descriptor) => {
           const record = cachedMap.get(descriptor.flopKey);
@@ -1528,17 +1544,34 @@ export default defineComponent({
       statusText.value = `Loaded ${runPreset.label} into Solver. Starting batch...`;
 
       const cachePresetId = researchPresetCacheKey(runPreset.id);
+      const treeKeyForRun = computeTreeKey(config, cachePresetId);
       const situationKey = computeSituationKey(config, cachePresetId, {
         targetExploitabilityPercent: runTargetExploitability,
         maxIterations: runMaxIterations,
         treeDepth: runTreeDepth,
       });
+
       const cachedRuns = runForceRecalculate
         ? []
         : await getResearchRuns(situationKey);
-      const cachedMap = new Map<string, ResearchRunRecord>(
-        cachedRuns.map((record) => [record.flopKey, record])
-      );
+      const cachedRunsByTree = runForceRecalculate
+        ? []
+        : await getResearchRunsByTree(treeKeyForRun);
+
+      const cachedMap = new Map<string, ResearchRunRecord>();
+      const allCached = [...cachedRunsByTree, ...cachedRuns];
+
+      for (const record of allCached) {
+        const existing = cachedMap.get(record.flopKey);
+        if (existing) {
+          const preferred = selectPreferredResearchRun([existing, record]);
+          if (preferred) {
+            cachedMap.set(record.flopKey, preferred);
+          }
+        } else {
+          cachedMap.set(record.flopKey, record);
+        }
+      }
 
       for (const [index, flop] of runFlops.entries()) {
         if (stopRequested.value) {
@@ -1563,15 +1596,14 @@ export default defineComponent({
         const existingRecord = await getResearchRunByTree(treeKey, flopKey);
 
         if (cachedMap.has(flopKey)) {
-          const cachedValue = cachedMap.get(flopKey)
-            ?.value as PersistedBatchValue;
+          const cachedRecord = cachedMap.get(flopKey)!;
+          const cachedValue = cachedRecord.value as PersistedBatchValue;
           const cachedSnapshot =
             cachedValue.snapshot ||
             createResearchPresetSnapshot(
-              (cachedMap.get(flopKey)?.presetId ||
-                runPreset.id) as ResearchPresetId,
-              cachedValue.board,
-              cachedValue.flop.flopBetOverride
+              (cachedRecord.presetId || runPreset.id) as ResearchPresetId,
+              cachedValue.board || parseStudyBoard(cachedRecord.boardText),
+              cachedValue.flop?.flopBetOverride
                 ? {
                     oopFlopBet: cachedValue.flop.flopBetOverride,
                     ipFlopBet: cachedValue.flop.flopBetOverride,
@@ -1600,9 +1632,9 @@ export default defineComponent({
             key: resultKey,
             situationKey,
             flopKey,
-            presetLabel: cachedMap.get(flopKey)?.presetLabel || runPreset.label,
+            presetLabel: cachedRecord.presetLabel || runPreset.label,
             flop: cachedValue.flop,
-            board: cachedValue.board,
+            board: cachedValue.board || parseStudyBoard(cachedRecord.boardText),
             snapshot: cachedSnapshot,
             outcome: cachedValue.outcome,
             error: cachedValue.error,

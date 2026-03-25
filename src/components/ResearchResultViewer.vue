@@ -341,6 +341,7 @@ import {
 } from "../store";
 import {
   createResearchPresetSnapshot,
+  parseStudyBoard,
   type FlopStudyItem,
   type ResearchPresetId,
 } from "../lib/research-presets";
@@ -545,10 +546,24 @@ export default defineComponent({
       progressText.value = "Fetching persisted research result...";
 
       try {
-        const record = await getResearchRun(
+        let record = await getResearchRun(
           selection.value.situationKey,
           selection.value.flopKey
         );
+
+        if (!record && selection.value.presetId) {
+          // Fallback to treeKey if not found by situationKey
+          // We need to recreate the snapshot to get the treeKey
+          const tempSnapshot = createResearchPresetSnapshot(
+            selection.value.presetId as ResearchPresetId,
+            parseStudyBoard(selection.value.boardText)
+          );
+          const treeKey = computeTreeKeyFromSnapshot(
+            tempSnapshot,
+            selection.value.presetId
+          );
+          record = await getResearchRunByTree(treeKey, selection.value.flopKey);
+        }
 
         if (!record) {
           loadError.value = "Persisted flop result not found.";
@@ -566,8 +581,8 @@ export default defineComponent({
           value.snapshot ||
           createResearchPresetSnapshot(
             record.presetId as ResearchPresetId,
-            value.board,
-            value.flop.flopBetOverride
+            value.board || parseStudyBoard(record.boardText),
+            value.flop?.flopBetOverride
               ? {
                   oopFlopBet: value.flop.flopBetOverride,
                   ipFlopBet: value.flop.flopBetOverride,

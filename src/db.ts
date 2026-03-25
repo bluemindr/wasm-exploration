@@ -93,7 +93,7 @@ const hasSerializedGame = (value: unknown) => {
   return serializedGame.byteLength > 0;
 };
 
-const selectPreferredResearchRun = (records: ResearchRunRecord[]) => {
+export const selectPreferredResearchRun = (records: ResearchRunRecord[]) => {
   if (records.length === 0) {
     return undefined;
   }
@@ -370,6 +370,28 @@ export const getResearchRun = async (situationKey: string, flopKey: string) => {
     .toArray()) as ResearchRunRecord[];
 
   return selectPreferredResearchRun(records);
+};
+
+export const getResearchRunsByTree = async (treeKey: string) => {
+  const records = (await db.researchRuns
+    .where("treeKey")
+    .equals(treeKey)
+    .sortBy("updatedAt")) as ResearchRunRecord[];
+
+  const deduped = new Map<string, ResearchRunRecord>();
+  for (const record of records) {
+    const existing = deduped.get(record.flopKey);
+    deduped.set(
+      record.flopKey,
+      selectPreferredResearchRun(
+        existing ? [existing, record] : [record]
+      ) as ResearchRunRecord
+    );
+  }
+
+  return Array.from(deduped.values()).sort(
+    (left, right) => left.updatedAt - right.updatedAt
+  );
 };
 
 export const getResearchRunByTree = async (

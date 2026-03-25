@@ -6,6 +6,7 @@ export type NavView = "solver" | "research" | "results";
 export type ResearchResultSelection = {
   situationKey: string;
   flopKey: string;
+  presetId: string;
   presetLabel: string;
   boardText: string;
   flopLabel: string;
@@ -29,6 +30,7 @@ const updateResearchResultUrl = (selection: ResearchResultSelection | null) => {
     url.searchParams.set("view", RESEARCH_RESULT_VIEW);
     url.searchParams.set("situationKey", selection.situationKey);
     url.searchParams.set("flopKey", selection.flopKey);
+    url.searchParams.set("presetId", selection.presetId);
     url.searchParams.set("presetLabel", selection.presetLabel);
     url.searchParams.set("boardText", selection.boardText);
     url.searchParams.set("flopLabel", selection.flopLabel);
@@ -40,6 +42,7 @@ const updateResearchResultUrl = (selection: ResearchResultSelection | null) => {
     url.searchParams.delete("view");
     url.searchParams.delete("situationKey");
     url.searchParams.delete("flopKey");
+    url.searchParams.delete("presetId");
     url.searchParams.delete("presetLabel");
     url.searchParams.delete("boardText");
     url.searchParams.delete("flopLabel");
@@ -58,6 +61,7 @@ export const buildResearchResultUrl = (selection: ResearchResultSelection) => {
   url.searchParams.set("view", RESEARCH_RESULT_VIEW);
   url.searchParams.set("situationKey", selection.situationKey);
   url.searchParams.set("flopKey", selection.flopKey);
+  url.searchParams.set("presetId", selection.presetId);
   url.searchParams.set("presetLabel", selection.presetLabel);
   url.searchParams.set("boardText", selection.boardText);
   url.searchParams.set("flopLabel", selection.flopLabel);
@@ -77,17 +81,26 @@ export const parseResearchResultSelectionFromUrl = () => {
 
   const situationKey = url.searchParams.get("situationKey");
   const flopKey = url.searchParams.get("flopKey");
+  const presetId = url.searchParams.get("presetId");
   const presetLabel = url.searchParams.get("presetLabel");
   const boardText = url.searchParams.get("boardText");
   const flopLabel = url.searchParams.get("flopLabel");
 
-  if (!situationKey || !flopKey || !presetLabel || !boardText || !flopLabel) {
+  if (
+    !situationKey ||
+    !flopKey ||
+    !presetId ||
+    !presetLabel ||
+    !boardText ||
+    !flopLabel
+  ) {
     return null;
   }
 
   return {
     situationKey,
     flopKey,
+    presetId,
     presetLabel,
     boardText,
     flopLabel,
