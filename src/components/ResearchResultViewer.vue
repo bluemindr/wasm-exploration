@@ -1,10 +1,16 @@
 <template>
-  <div class="min-h-full bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.12),_transparent_26%),linear-gradient(180deg,_#f8fafc_0%,_#eef2ff_100%)]">
+  <div
+    class="min-h-full bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.12),_transparent_26%),linear-gradient(180deg,_#f8fafc_0%,_#eef2ff_100%)]"
+  >
     <div class="mx-auto max-w-screen-lg px-6 py-6">
-      <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section
+        class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
+      >
         <div class="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <div class="text-xs font-semibold uppercase tracking-[0.22em] text-sky-700">
+            <div
+              class="text-xs font-semibold uppercase tracking-[0.22em] text-sky-700"
+            >
               Research Result
             </div>
             <h1 class="mt-2 text-4xl font-black tracking-tight text-slate-900">
@@ -34,7 +40,9 @@
       >
         <div class="flex items-center gap-3 text-slate-700">
           <span class="spinner inline-block"></span>
-          <span class="text-sm font-semibold">Loading native Results interface...</span>
+          <span class="text-sm font-semibold"
+            >Loading native Results interface...</span
+          >
         </div>
         <div class="mt-4 text-sm text-slate-600">
           {{ progressText }}
@@ -49,10 +57,14 @@
       </section>
 
       <template v-else-if="persistedValue && persistedValue.outcome">
-        <section class="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section
+          class="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
+        >
           <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <div class="text-xs font-semibold uppercase tracking-[0.22em] text-sky-700">
+              <div
+                class="text-xs font-semibold uppercase tracking-[0.22em] text-sky-700"
+              >
                 Persisted Summary
               </div>
               <div class="mt-2 text-sm text-slate-600">
@@ -69,7 +81,11 @@
                 :disabled="isOpeningNative || !persistedValue.serializedGame"
                 @click="openNativeResults"
               >
-                {{ isOpeningNative ? "Opening Native Results..." : "Open Persisted Native Results" }}
+                {{
+                  isOpeningNative
+                    ? "Opening Native Results..."
+                    : "Open Persisted Native Results"
+                }}
               </button>
               <button
                 v-if="!persistedValue.serializedGame"
@@ -77,32 +93,46 @@
                 :disabled="isOpeningNative"
                 @click="rebuildNativeResults"
               >
-                {{ isOpeningNative ? "Rebuilding Native Results..." : "Rebuild Native Results" }}
+                {{
+                  isOpeningNative
+                    ? "Rebuilding Native Results..."
+                    : "Rebuild Native Results"
+                }}
               </button>
             </div>
           </div>
 
           <div class="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <div class="rounded-2xl bg-slate-50 px-4 py-3">
-              <div class="text-xs uppercase tracking-[0.18em] text-slate-400">Exploitability</div>
+              <div class="text-xs uppercase tracking-[0.18em] text-slate-400">
+                Exploitability
+              </div>
               <div class="mt-1 text-lg font-bold text-slate-900">
                 {{ formatAdaptive(persistedValue.outcome.exploitability) }}
               </div>
             </div>
             <div class="rounded-2xl bg-slate-50 px-4 py-3">
-              <div class="text-xs uppercase tracking-[0.18em] text-slate-400">Iterations</div>
+              <div class="text-xs uppercase tracking-[0.18em] text-slate-400">
+                Iterations
+              </div>
               <div class="mt-1 text-lg font-bold text-slate-900">
                 {{ persistedValue.outcome.currentIteration }}
               </div>
             </div>
             <div class="rounded-2xl bg-slate-50 px-4 py-3">
-              <div class="text-xs uppercase tracking-[0.18em] text-slate-400">Equity OOP</div>
+              <div class="text-xs uppercase tracking-[0.18em] text-slate-400">
+                Equity OOP
+              </div>
               <div class="mt-1 text-lg font-bold text-slate-900">
-                {{ formatPercent(persistedValue.outcome.rootSummary.equity[0]) }}
+                {{
+                  formatPercent(persistedValue.outcome.rootSummary.equity[0])
+                }}
               </div>
             </div>
             <div class="rounded-2xl bg-slate-50 px-4 py-3">
-              <div class="text-xs uppercase tracking-[0.18em] text-slate-400">EV OOP</div>
+              <div class="text-xs uppercase tracking-[0.18em] text-slate-400">
+                EV OOP
+              </div>
               <div class="mt-1 text-lg font-bold text-slate-900">
                 {{ formatAdaptive(persistedValue.outcome.rootSummary.ev[0]) }}
               </div>
@@ -111,7 +141,11 @@
 
           <div class="mt-5 grid gap-4 lg:grid-cols-2">
             <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <div class="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">OOP flop</div>
+              <div
+                class="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700"
+              >
+                OOP flop
+              </div>
               <div class="mt-3 space-y-3">
                 <div
                   v-for="action in getFlopPlayerSummary('oop').actions"
@@ -124,7 +158,10 @@
                         {{ action.label }}
                       </div>
                       <div class="text-sm text-slate-500">
-                        EV {{ action.ev === null ? '-' : formatAdaptive(action.ev) }}
+                        EV
+                        {{
+                          action.ev === null ? "-" : formatAdaptive(action.ev)
+                        }}
                       </div>
                     </div>
                     <div class="text-right text-2xl font-black text-slate-900">
@@ -134,7 +171,9 @@
                   <div class="mt-3 h-2.5 rounded-full bg-slate-200">
                     <div
                       class="h-2.5 rounded-full bg-[linear-gradient(90deg,_#1d4ed8_0%,_#38bdf8_100%)]"
-                      :style="{ width: `${Math.max(2, action.frequency * 100)}%` }"
+                      :style="{
+                        width: `${Math.max(2, action.frequency * 100)}%`,
+                      }"
                     ></div>
                   </div>
                 </div>
@@ -142,8 +181,16 @@
             </div>
 
             <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <div class="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">IP flop</div>
-              <div class="mt-1 text-xs text-slate-500">{{ getFlopPlayerSummary('ip').contextLabel || 'After OOP check' }}</div>
+              <div
+                class="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700"
+              >
+                IP flop
+              </div>
+              <div class="mt-1 text-xs text-slate-500">
+                {{
+                  getFlopPlayerSummary("ip").contextLabel || "After OOP check"
+                }}
+              </div>
               <div class="mt-3 space-y-3">
                 <div
                   v-for="action in getFlopPlayerSummary('ip').actions"
@@ -156,7 +203,10 @@
                         {{ action.label }}
                       </div>
                       <div class="text-sm text-slate-500">
-                        EV {{ action.ev === null ? '-' : formatAdaptive(action.ev) }}
+                        EV
+                        {{
+                          action.ev === null ? "-" : formatAdaptive(action.ev)
+                        }}
                       </div>
                     </div>
                     <div class="text-right text-2xl font-black text-slate-900">
@@ -166,7 +216,9 @@
                   <div class="mt-3 h-2.5 rounded-full bg-slate-200">
                     <div
                       class="h-2.5 rounded-full bg-[linear-gradient(90deg,_#92400e_0%,_#f59e0b_100%)]"
-                      :style="{ width: `${Math.max(2, action.frequency * 100)}%` }"
+                      :style="{
+                        width: `${Math.max(2, action.frequency * 100)}%`,
+                      }"
                     ></div>
                   </div>
                 </div>
@@ -179,30 +231,50 @@
           v-if="persistedValue.outcome.rootSummary.treePreview"
           class="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
         >
-          <div class="text-xs font-semibold uppercase tracking-[0.22em] text-sky-700">
+          <div
+            class="text-xs font-semibold uppercase tracking-[0.22em] text-sky-700"
+          >
             Persisted Tree Preview
           </div>
           <div class="mt-4">
-            <ResearchTreePreview :node="persistedValue.outcome.rootSummary.treePreview" />
+            <ResearchTreePreview
+              :node="persistedValue.outcome.rootSummary.treePreview"
+            />
           </div>
         </section>
 
-        <section class="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section
+          class="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
+        >
           <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <div class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+              <div
+                class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500"
+              >
                 Cache Diagnostics
               </div>
               <div class="mt-2 text-sm text-slate-600">
-                Entrées Dexie trouvées pour ce `situationKey` + `flopKey`: {{ cacheDiagnostics.length }}
+                Entrées Dexie trouvées pour ce `situationKey` + `flopKey`:
+                {{ cacheDiagnostics.length }}
               </div>
             </div>
-            <button class="button-base button-blue" :disabled="isLoadingDiagnostics" @click="reloadDiagnostics">
-              {{ isLoadingDiagnostics ? "Refreshing Cache..." : "Refresh Cache Diagnostics" }}
+            <button
+              class="button-base button-blue"
+              :disabled="isLoadingDiagnostics"
+              @click="reloadDiagnostics"
+            >
+              {{
+                isLoadingDiagnostics
+                  ? "Refreshing Cache..."
+                  : "Refresh Cache Diagnostics"
+              }}
             </button>
           </div>
 
-          <div v-if="cacheDiagnostics.length === 0" class="mt-4 text-sm text-slate-500">
+          <div
+            v-if="cacheDiagnostics.length === 0"
+            class="mt-4 text-sm text-slate-500"
+          >
             Aucun enregistrement trouvé pour cette clé de flop.
           </div>
 
@@ -213,12 +285,27 @@
               class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-700"
             >
               <div class="flex flex-wrap items-center gap-3">
-                <div class="font-semibold text-slate-900">Record #{{ entry.id }}</div>
-                <div class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]"
-                  :class="entry.hasSerializedGame ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700'">
-                  {{ entry.hasSerializedGame ? 'Serialized tree present' : 'No serialized tree' }}
+                <div class="font-semibold text-slate-900">
+                  Record #{{ entry.id }}
                 </div>
-                <div v-if="entry.isPreferred" class="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">
+                <div
+                  class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]"
+                  :class="
+                    entry.hasSerializedGame
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : 'bg-slate-200 text-slate-700'
+                  "
+                >
+                  {{
+                    entry.hasSerializedGame
+                      ? "Serialized tree present"
+                      : "No serialized tree"
+                  }}
+                </div>
+                <div
+                  v-if="entry.isPreferred"
+                  class="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-sky-700"
+                >
                   Selected by loader
                 </div>
               </div>
@@ -231,7 +318,6 @@
             </div>
           </div>
         </section>
-
       </template>
     </div>
   </div>
@@ -240,7 +326,12 @@
 <script lang="ts">
 import { computed, defineComponent, ref, watch } from "vue";
 import ResearchTreePreview from "./ResearchTreePreview.vue";
-import { getResearchRun, getResearchRunMatches, putResearchRun } from "../db";
+import {
+  getResearchRun,
+  getResearchRunByTree,
+  getResearchRunMatches,
+  putResearchRun,
+} from "../db";
 import {
   buildResearchResultUrl,
   clearResearchResultSelection,
@@ -250,10 +341,12 @@ import {
 } from "../store";
 import {
   createResearchPresetSnapshot,
+  parseStudyBoard,
   type FlopStudyItem,
   type ResearchPresetId,
 } from "../lib/research-presets";
 import {
+  computeTreeKeyFromSnapshot,
   exportSolvedGame,
   loadSerializedGame,
   replaySolvedResult,
@@ -288,7 +381,8 @@ const emptyFlopPlayerSummary = (player: "oop" | "ip"): FlopPlayerSummary => ({
 });
 
 const resultViewerThreads =
-  typeof SharedArrayBuffer !== "undefined" && window.crossOriginIsolated === true
+  typeof SharedArrayBuffer !== "undefined" &&
+  window.crossOriginIsolated === true
     ? Math.max(1, Math.min(3, navigator.hardwareConcurrency || 1))
     : 1;
 
@@ -320,7 +414,9 @@ const cloneSerializedGame = (value: ArrayBuffer | Uint8Array) =>
 const formatDateTime = (value: number) => new Date(value).toLocaleString();
 
 const applySnapshotToStore = (
-  target: ReturnType<typeof useConfigStore> | ReturnType<typeof useSavedConfigStore>,
+  target:
+    | ReturnType<typeof useConfigStore>
+    | ReturnType<typeof useSavedConfigStore>,
   snapshot: SolverConfigSnapshot
 ) => {
   target.rangeRaw[0].set(snapshot.rangeRaw[0]);
@@ -395,7 +491,9 @@ export default defineComponent({
           .sort((left, right) => right.updatedAt - left.updatedAt)
           .map((record) => {
             const value = record.value as PersistedResearchValue;
-            const bytes = value.serializedGame ? value.serializedGame.byteLength : 0;
+            const bytes = value.serializedGame
+              ? value.serializedGame.byteLength
+              : 0;
             return {
               id: record.id || 0,
               updatedAtText: formatDateTime(record.updatedAt),
@@ -415,7 +513,10 @@ export default defineComponent({
     };
 
     const getFlopPlayerSummary = (player: "oop" | "ip"): FlopPlayerSummary => {
-      const summary = persistedValue.value?.outcome?.rootSummary.flopPlayerSummaries?.[player];
+      const summary =
+        persistedValue.value?.outcome?.rootSummary.flopPlayerSummaries?.[
+          player
+        ];
       if (summary) {
         return summary;
       }
@@ -437,18 +538,32 @@ export default defineComponent({
         return;
       }
 
-        isLoading.value = true;
-        isOpeningNative.value = false;
+      isLoading.value = true;
+      isOpeningNative.value = false;
       loadError.value = "";
-        persistedValue.value = null;
-        persistedSnapshot.value = null;
-        progressText.value = "Fetching persisted research result...";
+      persistedValue.value = null;
+      persistedSnapshot.value = null;
+      progressText.value = "Fetching persisted research result...";
 
       try {
-        const record = await getResearchRun(
+        let record = await getResearchRun(
           selection.value.situationKey,
           selection.value.flopKey
         );
+
+        if (!record && selection.value.presetId) {
+          // Fallback to treeKey if not found by situationKey
+          // We need to recreate the snapshot to get the treeKey
+          const tempSnapshot = createResearchPresetSnapshot(
+            selection.value.presetId as ResearchPresetId,
+            parseStudyBoard(selection.value.boardText)
+          );
+          const treeKey = computeTreeKeyFromSnapshot(
+            tempSnapshot,
+            selection.value.presetId
+          );
+          record = await getResearchRunByTree(treeKey, selection.value.flopKey);
+        }
 
         if (!record) {
           loadError.value = "Persisted flop result not found.";
@@ -457,7 +572,8 @@ export default defineComponent({
 
         const value = record.value as PersistedResearchValue;
         if (value.error || !value.outcome) {
-          loadError.value = value.error || "This flop does not have a solved result.";
+          loadError.value =
+            value.error || "This flop does not have a solved result.";
           return;
         }
 
@@ -465,8 +581,8 @@ export default defineComponent({
           value.snapshot ||
           createResearchPresetSnapshot(
             record.presetId as ResearchPresetId,
-            value.board,
-            value.flop.flopBetOverride
+            value.board || parseStudyBoard(record.boardText),
+            value.flop?.flopBetOverride
               ? {
                   oopFlopBet: value.flop.flopBetOverride,
                   ipFlopBet: value.flop.flopBetOverride,
@@ -481,7 +597,8 @@ export default defineComponent({
           : "Persisted summary loaded. Open the native interface only if needed.";
         await reloadDiagnostics();
       } catch (error) {
-        loadError.value = error instanceof Error ? error.message : String(error);
+        loadError.value =
+          error instanceof Error ? error.message : String(error);
         await reloadDiagnostics();
       } finally {
         isLoading.value = false;
@@ -489,7 +606,9 @@ export default defineComponent({
     };
 
     const openNativeResults = async (
-      existingRecord = null as Awaited<ReturnType<typeof getResearchRun>> | null,
+      existingRecord = null as Awaited<
+        ReturnType<typeof getResearchRun>
+      > | null,
       existingValue = persistedValue.value,
       existingSnapshot = persistedSnapshot.value,
       allowReplay = false
@@ -535,7 +654,8 @@ export default defineComponent({
             resultViewerThreads,
             (progress) => {
               if (progress.stage === "building") {
-                progressText.value = "Rebuilding tree for the live Results interface...";
+                progressText.value =
+                  "Rebuilding tree for the live Results interface...";
                 return;
               }
 
@@ -560,24 +680,39 @@ export default defineComponent({
 
           if (existingRecord) {
             try {
-              const serializedGame = cloneSerializedGame(await exportSolvedGame());
+              const serializedGame = cloneSerializedGame(
+                await exportSolvedGame()
+              );
               const nextValue = {
                 ...existingValue,
                 snapshot: existingSnapshot,
                 serializedGame,
               } satisfies PersistedResearchValue;
+              const treeKey = computeTreeKeyFromSnapshot(
+                existingSnapshot,
+                existingRecord.presetId
+              );
               const persisted = await putResearchRun({
                 ...existingRecord,
+                treeKey,
                 updatedAt: Date.now(),
                 value: nextValue,
               });
               const persistedRecord = persisted
-                ? await getResearchRun(existingRecord.situationKey, existingRecord.flopKey)
+                ? await getResearchRun(
+                    existingRecord.situationKey,
+                    existingRecord.flopKey
+                  )
                 : undefined;
-              const confirmedValue = persistedRecord?.value as PersistedResearchValue | undefined;
+              const confirmedValue = persistedRecord?.value as
+                | PersistedResearchValue
+                | undefined;
               persistedValue.value =
                 persisted && confirmedValue ? confirmedValue : nextValue;
-              if (!persisted || !hasSerializedGame(confirmedValue?.serializedGame)) {
+              if (
+                !persisted ||
+                !hasSerializedGame(confirmedValue?.serializedGame)
+              ) {
                 progressText.value =
                   "Native results opened, but the serialized tree could not be persisted.";
               }
@@ -600,14 +735,20 @@ export default defineComponent({
         store.isFinalizing = false;
         store.isSolverPaused = false;
         store.isSolverFinished = false;
-        loadError.value = error instanceof Error ? error.message : String(error);
+        loadError.value =
+          error instanceof Error ? error.message : String(error);
       } finally {
         isOpeningNative.value = false;
       }
     };
 
     const rebuildNativeResults = async () => {
-      await openNativeResults(null, persistedValue.value, persistedSnapshot.value, true);
+      await openNativeResults(
+        null,
+        persistedValue.value,
+        persistedSnapshot.value,
+        true
+      );
     };
 
     const backToResearch = () => {
@@ -619,7 +760,11 @@ export default defineComponent({
         return;
       }
 
-      window.open(buildResearchResultUrl(selection.value), "_blank", "noopener");
+      window.open(
+        buildResearchResultUrl(selection.value),
+        "_blank",
+        "noopener"
+      );
     };
 
     watch(selection, loadRecord, { immediate: true });

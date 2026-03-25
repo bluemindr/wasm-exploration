@@ -127,7 +127,9 @@ const createHandler = (mod: Mod) => {
     },
 
     saveGame(compressionLevel: number) {
-      const serializedGame = (game as any).save_game(compressionLevel) as Uint8Array;
+      const serializedGame = (game as any).save_game(
+        compressionLevel
+      ) as Uint8Array;
       return Comlink.transfer(serializedGame.buffer, [serializedGame.buffer]);
     },
 
@@ -148,7 +150,8 @@ const createHandler = (mod: Mod) => {
 const isMTSupported = () => {
   const browser = detect();
   const browserSupportsThreads = !(
-    browser && (browser.name === "safari" || browser.os === "iOS")
+    browser &&
+    (browser.name === "safari" || browser.os === "iOS")
   );
   const runtimeSupportsSharedMemory =
     typeof SharedArrayBuffer !== "undefined" &&

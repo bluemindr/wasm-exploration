@@ -62,10 +62,7 @@
         v-if="store.selectedResearchResult"
         style="height: calc(max(100%, 720px - 2.5rem))"
       />
-      <ResultViewer
-        v-else
-        style="height: calc(max(100%, 720px - 2.5rem))"
-      />
+      <ResultViewer v-else style="height: calc(max(100%, 720px - 2.5rem))" />
     </div>
   </div>
 </template>

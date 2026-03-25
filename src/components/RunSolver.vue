@@ -406,7 +406,9 @@ export default defineComponent({
     const tmpConfig = useTmpConfigStore();
 
     const numThreads = ref(
-      !isSafari ? Math.max(1, Math.min(3, navigator.hardwareConcurrency || 1)) : 1
+      !isSafari
+        ? Math.max(1, Math.min(3, navigator.hardwareConcurrency || 1))
+        : 1
     );
     const targetExploitability = ref(0.3);
     const maxIterations = ref(1000);
@@ -534,7 +536,11 @@ export default defineComponent({
 
       workerModeText.value = workerInitInfo
         ? workerInitInfo.usedFallback
-          ? `Requested ${workerInitInfo.requestedThreads} threads, running on 1 thread fallback. ${workerInitInfo.reason || ""}`.trim()
+          ? `Requested ${
+              workerInitInfo.requestedThreads
+            } threads, running on 1 thread fallback. ${
+              workerInitInfo.reason || ""
+            }`.trim()
           : workerInitInfo.mode === "multi-thread"
           ? `Running on ${workerInitInfo.actualThreads} worker threads.`
           : `Running on 1 thread.`
@@ -631,7 +637,9 @@ export default defineComponent({
       treeStatus,
       workerModeText,
       workerModeClass: computed(() =>
-        workerModeText.value.includes("fallback") ? "text-amber-700" : "text-slate-600"
+        workerModeText.value.includes("fallback")
+          ? "text-amber-700"
+          : "text-slate-600"
       ),
       maxMemoryUsage,
       memoryUsage,
