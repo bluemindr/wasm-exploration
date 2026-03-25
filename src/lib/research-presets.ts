@@ -63,8 +63,7 @@ export const researchPresets: ResearchPreset[] = [
     id: "btn-vs-bb-srp",
     label: "BTN vs BB SRP",
     summary: "Single-raised pot 100BB, open BTN 3BB, BB defend OOP, sans ante.",
-    note:
-      "Approximation GTO ouverte pour cash game 100BB avec open 3x. Le pot flop vaut 65 et le stack effectif restant 970.",
+    note: "Approximation GTO ouverte pour cash game 100BB avec open 3x. Le pot flop vaut 65 et le stack effectif restant 970.",
     oopRangeText:
       "77-22,A3s-A2s,A9s-A6s,K9s-K4s,Q9s-Q7s,J9s-J7s,T8s-T7s,97s+,86s+,76s,65s,54s,43s,AJo-A5o,KJo-K9o,Q9o+,J9o+,T9o,98o,87o",
     ipRangeText:
@@ -94,8 +93,7 @@ export const researchPresets: ResearchPreset[] = [
     id: "co-vs-bb-srp",
     label: "CO vs BB SRP",
     summary: "Single-raised pot 100BB, open CO 3BB, BB defend OOP, sans ante.",
-    note:
-      "Approximation GTO ouverte pour cash game 100BB avec open CO 3x. Le pot flop vaut 65 et le stack effectif restant 970.",
+    note: "Approximation GTO ouverte pour cash game 100BB avec open CO 3x. Le pot flop vaut 65 et le stack effectif restant 970.",
     oopRangeText:
       "88-22,A3s-A2s,ATs-A6s,K9s-K5s,Q9s-Q8s,J9s-J8s,T8s,97s+,87s,76s,65s,54s,AJo-A7o,KJo-KTo,QTo+,JTo,98o",
     ipRangeText:
@@ -125,12 +123,10 @@ export const researchPresets: ResearchPreset[] = [
     id: "utg-vs-bb-srp",
     label: "UTG 6max vs BB SRP",
     summary: "Single-raised pot 100BB, open UTG 3BB, BB defend OOP, sans ante.",
-    note:
-      "Approximation GTO ouverte pour cash game 100BB avec open UTG 3x. Le pot flop vaut 65 et le stack effectif restant 970.",
+    note: "Approximation GTO ouverte pour cash game 100BB avec open UTG 3x. Le pot flop vaut 65 et le stack effectif restant 970.",
     oopRangeText:
       "99-22,A3s-A2s,AJs-A6s,KJs-K7s,Q9s+,J9s+,T8s+,98s,87s,76s,65s,AQo-A9o,KJo+,QJo",
-    ipRangeText:
-      "55+,A2s+,ATs+,KTs+,QTs+,JTs,T9s,98s,AQo+,AJo,KQo",
+    ipRangeText: "55+,A2s+,ATs+,KTs+,QTs+,JTs,T9s,98s,AQo+,AJo,KQo",
     startingPot: 65,
     effectiveStack: 970,
     rakePercent: 5,
@@ -156,10 +152,8 @@ export const researchPresets: ResearchPreset[] = [
     id: "co-vs-btn-3bet",
     label: "CO vs BTN 3bet Pot",
     summary: "3bet pot 100BB, BTN 3bet IP à 9BB vs open CO 3BB.",
-    note:
-      "Approximation GTO ouverte pour cash game 100BB avec 3bet IP à 9BB total. Le pot flop vaut 195 et le stack effectif restant 910.",
-    oopRangeText:
-      "77,88,99,TT,JJ,QQ,AJs,AQs,AKs,KQs,QJs,JTs,T9s,98s,AQo,AKo",
+    note: "Approximation GTO ouverte pour cash game 100BB avec 3bet IP à 9BB total. Le pot flop vaut 195 et le stack effectif restant 910.",
+    oopRangeText: "77,88,99,TT,JJ,QQ,AJs,AQs,AKs,KQs,QJs,JTs,T9s,98s,AQo,AKo",
     ipRangeText:
       "99,TT,JJ,QQ,KK,AA,A5s,A4s,ATs,AJs,AQs,AKs,KTs,KJs,KQs,QTs,QJs,JTs,T9s,98s,AQo,AKo,KQo",
     startingPot: 195,
@@ -187,8 +181,7 @@ export const researchPresets: ResearchPreset[] = [
     id: "bb-vs-btn-3bet",
     label: "BB vs BTN 3bet Pot",
     summary: "3bet pot 100BB, BB 3bet OOP à 12BB vs open BTN 3BB.",
-    note:
-      "Approximation GTO ouverte pour cash game 100BB avec 3bet OOP à 12x. Le pot flop vaut 245 et le stack effectif restant 880.",
+    note: "Approximation GTO ouverte pour cash game 100BB avec 3bet OOP à 12x. Le pot flop vaut 245 et le stack effectif restant 880.",
     oopRangeText:
       "88,99,TT,JJ,QQ,KK,AA,A5s,A4s,ATs,AJs,AQs,AKs,KTs,KJs,KQs,QTs,QJs,JTs,T9s,98s,AQo,AKo,KQo",
     ipRangeText:
@@ -218,8 +211,7 @@ export const researchPresets: ResearchPreset[] = [
     id: "sb-vs-btn-3bet",
     label: "SB vs BTN 3bet Pot",
     summary: "3bet pot 100BB, SB 3bet OOP à 12BB vs open BTN 3BB.",
-    note:
-      "Approximation GTO ouverte pour cash game 100BB avec 3bet OOP à 12BB total, blinde incluse. Le pot flop vaut 250 et le stack effectif restant 880.",
+    note: "Approximation GTO ouverte pour cash game 100BB avec 3bet OOP à 12BB total, blinde incluse. Le pot flop vaut 250 et le stack effectif restant 880.",
     oopRangeText:
       "99,TT,JJ,QQ,KK,AA,A5s,A4s,ATs,AJs,AQs,AKs,KTs,KJs,KQs,QTs,QJs,JTs,T9s,98s,AQo,AKo,KQo",
     ipRangeText:
@@ -249,12 +241,10 @@ export const researchPresets: ResearchPreset[] = [
     id: "sb-vs-co-3bet",
     label: "SB vs CO 3bet Pot",
     summary: "3bet pot 100BB, SB 3bet OOP à 12BB vs open CO 3BB.",
-    note:
-      "Approximation GTO ouverte pour cash game 100BB avec 3bet OOP à 12BB total, blinde incluse. Le pot flop vaut 250 et le stack effectif restant 880.",
+    note: "Approximation GTO ouverte pour cash game 100BB avec 3bet OOP à 12BB total, blinde incluse. Le pot flop vaut 250 et le stack effectif restant 880.",
     oopRangeText:
       "99,TT,JJ,QQ,KK,AA,A5s,A4s,AJs,AQs,AKs,KTs,KJs,KQs,QTs,QJs,JTs,T9s,AQo,AKo,KQo",
-    ipRangeText:
-      "66,77,88,99,TT,JJ,AJs,AQs,KQs,QJs,JTs,T9s,98s,AQo,KQo",
+    ipRangeText: "66,77,88,99,TT,JJ,AJs,AQs,KQs,QJs,JTs,T9s,98s,AQo,KQo",
     startingPot: 250,
     effectiveStack: 880,
     rakePercent: 4,
@@ -280,12 +270,9 @@ export const researchPresets: ResearchPreset[] = [
     id: "sb-vs-utg-3bet",
     label: "SB vs UTG 6max 3bet Pot",
     summary: "3bet pot 100BB, SB 3bet OOP à 12BB vs open UTG 3BB.",
-    note:
-      "Approximation GTO ouverte pour cash game 100BB avec 3bet OOP à 12BB total, blinde incluse. Le pot flop vaut 250 et le stack effectif restant 880.",
-    oopRangeText:
-      "TT,JJ,QQ,KK,AA,A4s,A5s,AQs,AKs,KQs,AKo",
-    ipRangeText:
-      "88,99,TT,JJ,QQ,AQs,AJs,KQs,QJs,JTs,AQo,KQo",
+    note: "Approximation GTO ouverte pour cash game 100BB avec 3bet OOP à 12BB total, blinde incluse. Le pot flop vaut 250 et le stack effectif restant 880.",
+    oopRangeText: "TT,JJ,QQ,KK,AA,A4s,A5s,AQs,AKs,KQs,AKo",
+    ipRangeText: "88,99,TT,JJ,QQ,AQs,AJs,KQs,QJs,JTs,AQo,KQo",
     startingPot: 250,
     effectiveStack: 880,
     rakePercent: 4,
@@ -493,8 +480,9 @@ const setRange = (
     throw new Error(error);
   }
 
-  const weights = Array.from(manager.get_weights() as ArrayLike<number>, (value) =>
-    value * 100
+  const weights = Array.from(
+    manager.get_weights() as ArrayLike<number>,
+    (value) => value * 100
   );
   config.range[player].splice(0, config.range[player].length, ...weights);
   config.rangeRaw[player].set(manager.raw_data());
@@ -529,7 +517,10 @@ export const createResearchPresetSnapshot = (
   const preset = getResearchPresetById(presetId);
 
   return {
-    rangeRaw: [buildRangeRaw(preset.oopRangeText), buildRangeRaw(preset.ipRangeText)],
+    rangeRaw: [
+      buildRangeRaw(preset.oopRangeText),
+      buildRangeRaw(preset.ipRangeText),
+    ],
     board: [...(boardOverride ?? parseBoardText(preset.referenceBoard))],
     startingPot: preset.startingPot,
     effectiveStack: preset.effectiveStack,

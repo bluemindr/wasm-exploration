@@ -204,11 +204,7 @@ const getCurrentHandler = () => {
   return handler;
 };
 
-export const computeSituationKey = (
-  config: ConfigStore,
-  presetId: string,
-  options: SituationKeyOptions
-) => {
+export const computeTreeKey = (config: ConfigStore, presetId: string) => {
   const payload = [
     presetId,
     hashFloatArray(config.rangeRaw[0]),
@@ -238,6 +234,84 @@ export const computeSituationKey = (
     config.expectedBoardLength,
     config.addedLines,
     config.removedLines,
+  ].join("|");
+
+  return hashString(payload);
+};
+
+export const computeTreeKeyFromSnapshot = (
+  snapshot: Pick<
+    SolverConfigSnapshot,
+    | "rangeRaw"
+    | "startingPot"
+    | "effectiveStack"
+    | "rakePercent"
+    | "rakeCap"
+    | "donkOption"
+    | "oopFlopBet"
+    | "oopFlopRaise"
+    | "oopTurnBet"
+    | "oopTurnRaise"
+    | "oopTurnDonk"
+    | "oopRiverBet"
+    | "oopRiverRaise"
+    | "oopRiverDonk"
+    | "ipFlopBet"
+    | "ipFlopRaise"
+    | "ipTurnBet"
+    | "ipTurnRaise"
+    | "ipRiverBet"
+    | "ipRiverRaise"
+    | "addAllInThreshold"
+    | "forceAllInThreshold"
+    | "mergingThreshold"
+    | "addedLines"
+    | "removedLines"
+  >,
+  presetId: string
+) => {
+  const payload = [
+    presetId,
+    hashFloatArray(snapshot.rangeRaw[0]),
+    hashFloatArray(snapshot.rangeRaw[1]),
+    snapshot.startingPot,
+    snapshot.effectiveStack,
+    snapshot.rakePercent,
+    snapshot.rakeCap,
+    snapshot.donkOption ? 1 : 0,
+    snapshot.oopFlopBet,
+    snapshot.oopFlopRaise,
+    snapshot.oopTurnBet,
+    snapshot.oopTurnRaise,
+    snapshot.oopTurnDonk,
+    snapshot.oopRiverBet,
+    snapshot.oopRiverRaise,
+    snapshot.oopRiverDonk,
+    snapshot.ipFlopBet,
+    snapshot.ipFlopRaise,
+    snapshot.ipTurnBet,
+    snapshot.ipTurnRaise,
+    snapshot.ipRiverBet,
+    snapshot.ipRiverRaise,
+    snapshot.addAllInThreshold,
+    snapshot.forceAllInThreshold,
+    snapshot.mergingThreshold,
+    0,
+    snapshot.addedLines,
+    snapshot.removedLines,
+  ].join("|");
+
+  return hashString(payload);
+};
+
+export const computeSituationKey = (
+  config: ConfigStore,
+  presetId: string,
+  options: SituationKeyOptions
+) => {
+  const treeKey = computeTreeKey(config, presetId);
+  const payload = [
+    treeKey,
     options.targetExploitabilityPercent,
     options.maxIterations,
     options.treeDepth,
@@ -278,35 +352,9 @@ export const computeSituationKeyFromSnapshot = (
   presetId: string,
   options: SituationKeyOptions
 ) => {
+  const treeKey = computeTreeKeyFromSnapshot(snapshot, presetId);
   const payload = [
-    presetId,
-    hashFloatArray(snapshot.rangeRaw[0]),
-    hashFloatArray(snapshot.rangeRaw[1]),
-    snapshot.startingPot,
-    snapshot.effectiveStack,
-    snapshot.rakePercent,
-    snapshot.rakeCap,
-    snapshot.donkOption ? 1 : 0,
-    snapshot.oopFlopBet,
-    snapshot.oopFlopRaise,
-    snapshot.oopTurnBet,
-    snapshot.oopTurnRaise,
-    snapshot.oopTurnDonk,
-    snapshot.oopRiverBet,
-    snapshot.oopRiverRaise,
-    snapshot.oopRiverDonk,
-    snapshot.ipFlopBet,
-    snapshot.ipFlopRaise,
-    snapshot.ipTurnBet,
-    snapshot.ipTurnRaise,
-    snapshot.ipRiverBet,
-    snapshot.ipRiverRaise,
-    snapshot.addAllInThreshold,
-    snapshot.forceAllInThreshold,
-    snapshot.mergingThreshold,
-    0,
-    snapshot.addedLines,
-    snapshot.removedLines,
+    treeKey,
     options.targetExploitabilityPercent,
     options.maxIterations,
     options.treeDepth,
@@ -315,11 +363,16 @@ export const computeSituationKeyFromSnapshot = (
   return hashString(payload);
 };
 
-export const computeFlopKey = (boardText: string, treeOverrides?: FlopTreeOverrides) => {
+export const computeFlopKey = (
+  boardText: string,
+  treeOverrides?: FlopTreeOverrides
+) => {
   return hashString(
-    [boardText.replace(/\s+/g, ""), treeOverrides?.oopFlopBet || "", treeOverrides?.ipFlopBet || ""].join(
-      "|"
-    )
+    [
+      boardText.replace(/\s+/g, ""),
+      treeOverrides?.oopFlopBet || "",
+      treeOverrides?.ipFlopBet || "",
+    ].join("|")
   );
 };
 
@@ -429,7 +482,8 @@ const parseResults = async (): Promise<ParsedResults> => {
     asNumberArray(await solver.privateCards(1)),
   ];
 
-  const currentPlayer = (await solver.currentPlayer()) as ParsedResults["currentPlayer"];
+  const currentPlayer =
+    (await solver.currentPlayer()) as ParsedResults["currentPlayer"];
   const numActions =
     currentPlayer === "oop" || currentPlayer === "ip"
       ? await solver.numActions()
@@ -539,7 +593,10 @@ const summarizePlayerActionsAtHistory = async (
     const strategySlice = parsed.strategy.slice(start, end);
     const actionEvSlice = parsed.actionEv.slice(start, end);
 
-    const frequency = safeAverage(strategySlice, parsed.normalizer[playerIndex]);
+    const frequency = safeAverage(
+      strategySlice,
+      parsed.normalizer[playerIndex]
+    );
     const actionEv =
       actionEvSlice.length === playerLength
         ? safeAverage(actionEvSlice, parsed.normalizer[playerIndex])
@@ -606,13 +663,17 @@ const summarizeRoot = async (
 
   const oopFlopSummary = {
     player: "oop" as const,
-    actions: rootActionSummary.currentPlayer === "oop" ? rootActionSummary.actions : [],
+    actions:
+      rootActionSummary.currentPlayer === "oop"
+        ? rootActionSummary.actions
+        : [],
     contextLabel: null,
   };
 
   let ipFlopSummary = {
     player: "ip" as const,
-    actions: rootActionSummary.currentPlayer === "ip" ? rootActionSummary.actions : [],
+    actions:
+      rootActionSummary.currentPlayer === "ip" ? rootActionSummary.actions : [],
     contextLabel: null as string | null,
   };
 
@@ -622,7 +683,9 @@ const summarizeRoot = async (
     );
 
     if (oopCheckAction) {
-      const ipActionSummary = await summarizePlayerActionsAtHistory([oopCheckAction.index]);
+      const ipActionSummary = await summarizePlayerActionsAtHistory([
+        oopCheckAction.index,
+      ]);
       if (ipActionSummary.currentPlayer === "ip") {
         ipFlopSummary = {
           player: "ip",
@@ -670,7 +733,8 @@ const buildDecisionPreview = async (
   const solver = getCurrentHandler();
   await solver.applyHistory(new Uint32Array(history));
 
-  const currentPlayer = (await solver.currentPlayer()) as DecisionTreeNode["player"];
+  const currentPlayer =
+    (await solver.currentPlayer()) as DecisionTreeNode["player"];
   if (currentPlayer === "terminal") {
     return {
       path,
@@ -736,138 +800,158 @@ const buildDecisionPreview = async (
   };
 };
 
+let isSolverLocked = false;
+
 export const runBatchSolve = async (
   snapshot: SolverConfigSnapshot,
   options: RunBatchSolveOptions
 ): Promise<BatchSolveResult> => {
-  options.onProgress?.({
-    stage: "building",
-    flopIndex: options.flopIndex,
-    flopCount: options.flopCount,
-    flopLabel: options.flopLabel,
-    currentIteration: 0,
-    maxIterations: options.maxIterations,
-    exploitability: Number.POSITIVE_INFINITY,
-  });
-
-  const buildStats = await buildTree(snapshot, options.numThreads);
-  const solver = getCurrentHandler();
-  const compressionEnabled = options.forceCompression
-    ? true
-    : buildStats.compressionEnabled;
-
-  options.onProgress?.({
-    stage: "allocating",
-    flopIndex: options.flopIndex,
-    flopCount: options.flopCount,
-    flopLabel: options.flopLabel,
-    currentIteration: 0,
-    maxIterations: options.maxIterations,
-    exploitability: Number.POSITIVE_INFINITY,
-  });
-
-  const startedAt = performance.now();
-  await solver.allocateMemory(compressionEnabled);
-
-  if (options.shouldStop?.()) {
-    throw new Error("Batch solve stopped.");
+  if (isSolverLocked) {
+    throw new Error("Solver is already running another task.");
   }
-
-  let currentIteration = 0;
-  let exploitability = Math.max(await solver.exploitability(), 0);
-  const target = (snapshot.startingPot * options.targetExploitabilityPercent) / 100;
-
-  options.onProgress?.({
-    stage: "iterating",
-    flopIndex: options.flopIndex,
-    flopCount: options.flopCount,
-    flopLabel: options.flopLabel,
-    currentIteration,
-    maxIterations: options.maxIterations,
-    exploitability,
-  });
-
-  while (
-    !options.shouldStop?.() &&
-    currentIteration < options.maxIterations &&
-    exploitability > target
-  ) {
-    await solver.iterate(currentIteration);
-    currentIteration += 1;
-
-    if (currentIteration % 10 === 0) {
-      exploitability = Math.max(await solver.exploitability(), 0);
-      options.onProgress?.({
-        stage: "iterating",
-        flopIndex: options.flopIndex,
-        flopCount: options.flopCount,
-        flopLabel: options.flopLabel,
-        currentIteration,
-        maxIterations: options.maxIterations,
-        exploitability,
-      });
-    }
-  }
-
-  if (options.shouldStop?.()) {
-    throw new Error("Batch solve stopped.");
-  }
-
-  exploitability = Math.max(await solver.exploitability(), 0);
-  options.onProgress?.({
-    stage: "finalizing",
-    flopIndex: options.flopIndex,
-    flopCount: options.flopCount,
-    flopLabel: options.flopLabel,
-    currentIteration,
-    maxIterations: options.maxIterations,
-    exploitability,
-  });
-
-  let serializedGame: Uint8Array | undefined;
-  let serializationError: string | null = null;
+  isSolverLocked = true;
 
   try {
-    const exportedSerializedGame = await exportSolvedGame();
-    serializedGame = new Uint8Array(exportedSerializedGame).slice();
-    if (serializedGame.byteLength === 0) {
-      throw new Error("Serialized solver tree export returned an empty buffer.");
+    options.onProgress?.({
+      stage: "building",
+      flopIndex: options.flopIndex,
+      flopCount: options.flopCount,
+      flopLabel: options.flopLabel,
+      currentIteration: 0,
+      maxIterations: options.maxIterations,
+      exploitability: Number.POSITIVE_INFINITY,
+    });
+
+    const buildStats = await buildTree(snapshot, options.numThreads);
+    const solver = getCurrentHandler();
+    const compressionEnabled = options.forceCompression
+      ? true
+      : buildStats.compressionEnabled;
+
+    options.onProgress?.({
+      stage: "allocating",
+      flopIndex: options.flopIndex,
+      flopCount: options.flopCount,
+      flopLabel: options.flopLabel,
+      currentIteration: 0,
+      maxIterations: options.maxIterations,
+      exploitability: Number.POSITIVE_INFINITY,
+    });
+
+    const startedAt = performance.now();
+    await solver.allocateMemory(compressionEnabled);
+
+    if (options.shouldStop?.()) {
+      throw new Error("Batch solve stopped.");
     }
-  } catch (error) {
-    serializationError = error instanceof Error ? error.message : String(error);
-  }
 
-  await solver.finalize();
+    let currentIteration = 0;
+    let exploitability = Math.max(await solver.exploitability(), 0);
+    const target =
+      (snapshot.startingPot * options.targetExploitabilityPercent) / 100;
 
-  const elapsedTimeMs = performance.now() - startedAt;
-  const rootSummary = await summarizeRoot(options.treeDepth, snapshot.board);
-
-  options.onProgress?.({
-    stage: "done",
-    flopIndex: options.flopIndex,
-    flopCount: options.flopCount,
-    flopLabel: options.flopLabel,
-    currentIteration,
-    maxIterations: options.maxIterations,
-    exploitability,
-  });
-
-  return {
-    outcome: {
+    options.onProgress?.({
+      stage: "iterating",
+      flopIndex: options.flopIndex,
+      flopCount: options.flopCount,
+      flopLabel: options.flopLabel,
       currentIteration,
+      maxIterations: options.maxIterations,
       exploitability,
-      elapsedTimeMs,
-      memoryUsage: buildStats.memoryUsage,
-      memoryUsageCompressed: buildStats.memoryUsageCompressed,
-      compressionEnabled,
-      rootSummary: {
-        ...rootSummary,
-        boardText: boardToText(snapshot.board).join(" "),
+    });
+
+    while (
+      !options.shouldStop?.() &&
+      currentIteration < options.maxIterations &&
+      exploitability > target
+    ) {
+      await solver.iterate(currentIteration);
+      currentIteration += 1;
+
+      if (currentIteration % 10 === 0) {
+        exploitability = Math.max(await solver.exploitability(), 0);
+        options.onProgress?.({
+          stage: "iterating",
+          flopIndex: options.flopIndex,
+          flopCount: options.flopCount,
+          flopLabel: options.flopLabel,
+          currentIteration,
+          maxIterations: options.maxIterations,
+          exploitability,
+        });
+      }
+    }
+
+    if (options.shouldStop?.()) {
+      throw new Error("Batch solve stopped.");
+    }
+
+    exploitability = Math.max(await solver.exploitability(), 0);
+    options.onProgress?.({
+      stage: "finalizing",
+      flopIndex: options.flopIndex,
+      flopCount: options.flopCount,
+      flopLabel: options.flopLabel,
+      currentIteration,
+      maxIterations: options.maxIterations,
+      exploitability,
+    });
+
+    let serializedGame: Uint8Array | undefined;
+    let serializationError: string | null = null;
+
+    try {
+      const exportedSerializedGame = await exportSolvedGame();
+      serializedGame = new Uint8Array(exportedSerializedGame).slice();
+      if (serializedGame.byteLength === 0) {
+        throw new Error(
+          "Serialized solver tree export returned an empty buffer."
+        );
+      }
+    } catch (error) {
+      serializationError =
+        error instanceof Error ? error.message : String(error);
+    }
+
+    const elapsedTimeMs = performance.now() - startedAt;
+    const rootSummary = await summarizeRoot(options.treeDepth, snapshot.board);
+
+    options.onProgress?.({
+      stage: "done",
+      flopIndex: options.flopIndex,
+      flopCount: options.flopCount,
+      flopLabel: options.flopLabel,
+      currentIteration,
+      maxIterations: options.maxIterations,
+      exploitability,
+    });
+
+    return {
+      outcome: {
+        currentIteration,
+        exploitability,
+        elapsedTimeMs,
+        memoryUsage: buildStats.memoryUsage,
+        memoryUsageCompressed: buildStats.memoryUsageCompressed,
+        compressionEnabled,
+        rootSummary: {
+          ...rootSummary,
+          boardText: boardToText(snapshot.board).join(" "),
+        },
       },
-    },
-    serializedGame,
-    serializationError,
-  };
+      serializedGame,
+      serializationError,
+    };
+  } finally {
+    if (handler) {
+      try {
+        await handler.finalize();
+      } catch (e) {
+        // Ignore finalization errors
+      }
+    }
+    isSolverLocked = false;
+  }
 };
 
 export const exportSolvedGame = async () => {
@@ -928,7 +1012,10 @@ export const replaySolvedResult = async (
   for (let iteration = 0; iteration < outcome.currentIteration; ++iteration) {
     await solver.iterate(iteration);
 
-    if ((iteration + 1) % 10 === 0 || iteration + 1 === outcome.currentIteration) {
+    if (
+      (iteration + 1) % 10 === 0 ||
+      iteration + 1 === outcome.currentIteration
+    ) {
       exploitability = Math.max(await solver.exploitability(), 0);
       onProgress?.({
         stage: "iterating",

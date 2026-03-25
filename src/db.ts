@@ -23,6 +23,7 @@ export type DbGroup = {
 export type ResearchRunRecord = {
   id?: number;
   situationKey: string;
+  treeKey: string;
   flopKey: string;
   presetId: string;
   presetLabel: string;
@@ -67,7 +68,15 @@ class WASMPostflopDB extends Dexie {
     this.version(3).stores({
       ranges: "++id, [name0+name1+name2+name3+isGroup]",
       configurations: "++id, [name0+name1+name2+name3+isGroup]",
-      researchRuns: "++id, [situationKey+flopKey], situationKey, presetId, updatedAt",
+      researchRuns:
+        "++id, [situationKey+flopKey], situationKey, presetId, updatedAt",
+    });
+
+    this.version(4).stores({
+      ranges: "++id, [name0+name1+name2+name3+isGroup]",
+      configurations: "++id, [name0+name1+name2+name3+isGroup]",
+      researchRuns:
+        "++id, [situationKey+flopKey], situationKey, treeKey, presetId, updatedAt",
     });
   }
 }
@@ -75,7 +84,8 @@ class WASMPostflopDB extends Dexie {
 const db = new WASMPostflopDB();
 
 const hasSerializedGame = (value: unknown) => {
-  const serializedGame = (value as ResearchRunValue | undefined)?.serializedGame;
+  const serializedGame = (value as ResearchRunValue | undefined)
+    ?.serializedGame;
   if (!serializedGame) {
     return false;
   }
@@ -89,7 +99,9 @@ const selectPreferredResearchRun = (records: ResearchRunRecord[]) => {
   }
 
   return [...records].sort((left, right) => {
-    const nativeDelta = Number(hasSerializedGame(right.value)) - Number(hasSerializedGame(left.value));
+    const nativeDelta =
+      Number(hasSerializedGame(right.value)) -
+      Number(hasSerializedGame(left.value));
     if (nativeDelta !== 0) {
       return nativeDelta;
     }
@@ -340,11 +352,15 @@ export const getResearchRuns = async (situationKey: string) => {
     const existing = deduped.get(record.flopKey);
     deduped.set(
       record.flopKey,
-      selectPreferredResearchRun(existing ? [existing, record] : [record]) as ResearchRunRecord
+      selectPreferredResearchRun(
+        existing ? [existing, record] : [record]
+      ) as ResearchRunRecord
     );
   }
 
-  return Array.from(deduped.values()).sort((left, right) => left.updatedAt - right.updatedAt);
+  return Array.from(deduped.values()).sort(
+    (left, right) => left.updatedAt - right.updatedAt
+  );
 };
 
 export const getResearchRun = async (situationKey: string, flopKey: string) => {
@@ -356,15 +372,45 @@ export const getResearchRun = async (situationKey: string, flopKey: string) => {
   return selectPreferredResearchRun(records);
 };
 
-export const getResearchRunMatches = async (situationKey: string, flopKey: string) => {
+export const getResearchRunByTree = async (
+  treeKey: string,
+  flopKey: string
+) => {
+  const records = (await db.researchRuns
+    .where("treeKey")
+    .equals(treeKey)
+    .and((r) => r.flopKey === flopKey)
+    .toArray()) as ResearchRunRecord[];
+
+  return selectPreferredResearchRun(records);
+};
+
+export const getResearchRunMatches = async (
+  situationKey: string,
+  flopKey: string
+) => {
   return (await db.researchRuns
     .where("[situationKey+flopKey]")
     .equals([situationKey, flopKey])
     .sortBy("updatedAt")) as ResearchRunRecord[];
 };
 
-export const deleteResearchRun = async (situationKey: string, flopKey: string) => {
+export const deleteResearchRun = async (
+  situationKey: string,
+  flopKey: string,
+  treeKey?: string
+) => {
   try {
+    if (treeKey) {
+      return (
+        (await db.researchRuns
+          .where("treeKey")
+          .equals(treeKey)
+          .and((r) => r.flopKey === flopKey)
+          .delete()) >= 0
+      );
+    }
+
     return (
       (await db.researchRuns
         .where("[situationKey+flopKey]")
@@ -379,15 +425,27 @@ export const deleteResearchRun = async (situationKey: string, flopKey: string) =
 export const putResearchRun = async (record: ResearchRunRecord) => {
   try {
     return await db.transaction("rw", db.researchRuns, async () => {
-      const existingRecords = (await db.researchRuns
+      const existingInSituation = (await db.researchRuns
         .where("[situationKey+flopKey]")
         .equals([record.situationKey, record.flopKey])
         .toArray()) as ResearchRunRecord[];
 
-      const preferredExisting = selectPreferredResearchRun(existingRecords);
-      const preservedSerializedGame = hasSerializedGame((record.value as ResearchRunValue | undefined))
+      const existingInTree = (await db.researchRuns
+        .where("treeKey")
+        .equals(record.treeKey)
+        .and((r) => r.flopKey === record.flopKey)
+        .toArray()) as ResearchRunRecord[];
+
+      const preferredExistingSituation =
+        selectPreferredResearchRun(existingInSituation);
+      const preferredExistingTree = selectPreferredResearchRun(existingInTree);
+
+      const preservedSerializedGame = hasSerializedGame(
+        record.value as ResearchRunValue | undefined
+      )
         ? undefined
-        : (preferredExisting?.value as ResearchRunValue | undefined)?.serializedGame;
+        : (preferredExistingTree?.value as ResearchRunValue | undefined)
+            ?.serializedGame;
 
       const nextRecord = preservedSerializedGame
         ? {
@@ -399,16 +457,17 @@ export const putResearchRun = async (record: ResearchRunRecord) => {
           }
         : record;
 
-      if (preferredExisting?.id != null) {
-        await db.researchRuns.update(preferredExisting.id, nextRecord);
+      if (preferredExistingSituation?.id != null) {
+        await db.researchRuns.update(preferredExistingSituation.id, nextRecord);
       } else {
         await db.researchRuns.add(nextRecord);
       }
 
-      const duplicateIds = existingRecords
+      const duplicateIds = existingInSituation
         .map((existing) => existing.id)
         .filter(
-          (id): id is number => id != null && id !== preferredExisting?.id
+          (id): id is number =>
+            id != null && id !== preferredExistingSituation?.id
         );
 
       if (duplicateIds.length > 0) {
@@ -422,10 +481,22 @@ export const putResearchRun = async (record: ResearchRunRecord) => {
   }
 };
 
-export const deleteResearchRuns = async (situationKey: string) => {
+export const deleteResearchRuns = async (
+  situationKey: string,
+  treeKey?: string
+) => {
   try {
+    if (treeKey) {
+      return (
+        (await db.researchRuns.where("treeKey").equals(treeKey).delete()) >= 0
+      );
+    }
+
     return (
-      (await db.researchRuns.where("situationKey").equals(situationKey).delete()) >= 0
+      (await db.researchRuns
+        .where("situationKey")
+        .equals(situationKey)
+        .delete()) >= 0
     );
   } catch {
     return false;

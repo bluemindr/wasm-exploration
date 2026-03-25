@@ -15,7 +15,10 @@
         </div>
       </div>
 
-      <div v-if="node.actionLabels.length > 0" class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <div
+        v-if="node.actionLabels.length > 0"
+        class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3"
+      >
         <div
           v-for="(label, index) in node.actionLabels"
           :key="`${pathLabel}-${label}-${index}`"
@@ -29,7 +32,10 @@
       </div>
     </div>
 
-    <div v-if="node.children.length > 0" class="border-l-2 border-slate-200 pl-4">
+    <div
+      v-if="node.children.length > 0"
+      class="border-l-2 border-slate-200 pl-4"
+    >
       <ResearchTreePreview
         v-for="(child, index) in node.children"
         :key="`${pathLabel}-child-${index}`"
