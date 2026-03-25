@@ -224,6 +224,13 @@
           <div class="mt-5 flex flex-wrap gap-3">
             <button
               class="button-base button-blue"
+              :disabled="isRunning || isLoadingCachedResults"
+              @click="syncResultsFromCache"
+            >
+              {{ isLoadingCachedResults ? "Loading Cached Results..." : "Load Cached Results" }}
+            </button>
+            <button
+              class="button-base button-blue"
               :disabled="isRunning || invalidCustomBoards.length > 0"
               @click="runResearch"
             >
@@ -241,6 +248,13 @@
             </button>
             <button class="button-base button-red" :disabled="isRunning" @click="clearResults">
               Clear Results
+            </button>
+            <button
+              class="button-base button-red"
+              :disabled="isRunning || isDeletingCache || !situationKey"
+              @click="deletePresetCache"
+            >
+              {{ isDeletingCache ? "Deleting Cache..." : "Delete Preset Cache" }}
             </button>
           </div>
 
@@ -445,6 +459,12 @@
                   <div class="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white">
                     {{ result.flop.category }}
                   </div>
+                  <div
+                    class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]"
+                    :class="result.hasSerializedGame ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'"
+                  >
+                    {{ result.hasSerializedGame ? 'Native saved' : 'Summary only' }}
+                  </div>
                 </div>
                 <div class="mt-2 text-sm text-slate-600">
                   {{ result.flop.note }}
@@ -548,9 +568,17 @@
               </div>
             </div>
 
-            <div v-if="!result.error" class="mt-5 flex justify-end">
+            <div v-if="!result.error" class="mt-5 flex flex-wrap justify-end gap-3">
+              <button class="button-base button-red" :disabled="isRunning || isDeletingCache" @click="deleteFlopCache(result)">
+                Delete Flop Cache
+              </button>
               <button class="button-base button-blue" @click="openResultPage(result)">
                 Open Result Page
+              </button>
+            </div>
+            <div v-else class="mt-5 flex justify-end">
+              <button class="button-base button-red" :disabled="isRunning || isDeletingCache" @click="deleteFlopCache(result)">
+                Delete Flop Cache
               </button>
             </div>
           </div>
@@ -569,7 +597,14 @@ import {
   useConfigStore,
   useStore,
 } from "../store";
-import { getResearchRuns, putResearchRun, type ResearchRunRecord } from "../db";
+import {
+  deleteResearchRun,
+  deleteResearchRuns,
+  getResearchRun,
+  getResearchRuns,
+  putResearchRun,
+  type ResearchRunRecord,
+} from "../db";
 import {
   applyResearchPreset,
   createResearchPresetSnapshot,
@@ -581,7 +616,7 @@ import {
   type ResearchPresetId,
 } from "../lib/research-presets";
 import {
-  exportSolvedGame,
+  type BatchSolveResult,
   computeFlopKey,
   computeSituationKey,
   computeSituationKeyFromSnapshot,
@@ -606,6 +641,7 @@ type BatchResult = {
   snapshot: SolverConfigSnapshot;
   outcome: SolveOutcome | null;
   error: string | null;
+  hasSerializedGame: boolean;
 };
 
 type CustomFlopStudyItem = FlopStudyItem & {
@@ -618,7 +654,7 @@ type PersistedBatchValue = {
   flop: FlopStudyItem;
   board: number[];
   snapshot?: SolverConfigSnapshot;
-  serializedGame?: ArrayBuffer;
+  serializedGame?: ArrayBuffer | Uint8Array;
   outcome: SolveOutcome | null;
   error: string | null;
 };
@@ -648,6 +684,35 @@ const formatAdaptive = (value: number) => {
 
 const formatMs = (value: number) => `${(value / 1000).toFixed(2)}s`;
 
+const getSerializedGameByteLength = (
+  serializedGame?: ArrayBuffer | Uint8Array
+) => {
+  if (!serializedGame) {
+    return 0;
+  }
+
+  return serializedGame.byteLength;
+};
+
+const hasSerializedGame = (serializedGame?: ArrayBuffer | Uint8Array) =>
+  getSerializedGameByteLength(serializedGame) > 0;
+
+const cloneSerializedGame = (serializedGame: ArrayBuffer | Uint8Array) =>
+  serializedGame instanceof Uint8Array
+    ? serializedGame.slice()
+    : new Uint8Array(serializedGame).slice();
+
+const toPersistedSerializedGame = (
+  serializedGame?: ArrayBuffer | Uint8Array
+): Uint8Array | undefined => {
+  if (!serializedGame) {
+    return undefined;
+  }
+
+  const cloned = cloneSerializedGame(serializedGame);
+  return hasSerializedGame(cloned) ? cloned : undefined;
+};
+
 const researchPresetCacheKey = (presetId: ResearchPresetId) =>
   isSingleRaisedPotResearchPreset(presetId) ? `${presetId}:research-16bit` : presetId;
 
@@ -676,6 +741,7 @@ export default defineComponent({
     const forceRecalculate = ref(false);
     const isRunning = ref(false);
     const isLoadingCachedResults = ref(false);
+    const isDeletingCache = ref(false);
     const stopRequested = ref(false);
     const activeRunPresetLabel = ref("");
     const workerRuntimeText = ref("");
@@ -970,6 +1036,26 @@ export default defineComponent({
       statusText.value = "Results cleared.";
     };
 
+    const deletePresetCache = async () => {
+      if (!situationKey.value || isRunning.value || isDeletingCache.value) {
+        return;
+      }
+
+      isDeletingCache.value = true;
+      try {
+        const deleted = await deleteResearchRuns(situationKey.value);
+        if (!deleted) {
+          statusText.value = `Failed to delete cache for ${selectedPreset.value.label}.`;
+          return;
+        }
+
+        results.value = [];
+        statusText.value = `Deleted cached flops for ${selectedPreset.value.label}.`;
+      } finally {
+        isDeletingCache.value = false;
+      }
+    };
+
     const stopResearch = () => {
       if (!isRunning.value) {
         return;
@@ -1020,7 +1106,28 @@ export default defineComponent({
         snapshot: cachedSnapshot,
         outcome: cachedValue.outcome,
         error: cachedValue.error,
+        hasSerializedGame: hasSerializedGame(cachedValue.serializedGame),
       };
+    };
+
+    const deleteFlopCache = async (result: BatchResult) => {
+      if (isRunning.value || isDeletingCache.value) {
+        return;
+      }
+
+      isDeletingCache.value = true;
+      try {
+        const deleted = await deleteResearchRun(result.situationKey, result.flopKey);
+        if (!deleted) {
+          statusText.value = `Failed to delete cached flop ${result.flop.label}.`;
+          return;
+        }
+
+        results.value = results.value.filter((item) => item.key !== result.key);
+        statusText.value = `Deleted cached flop ${result.flop.label}.`;
+      } finally {
+        isDeletingCache.value = false;
+      }
     };
 
     const syncResultsFromCache = async () => {
@@ -1034,6 +1141,8 @@ export default defineComponent({
         results.value = [];
         if (researchInitError.value) {
           statusText.value = researchInitError.value;
+        } else {
+          statusText.value = "No cached results are available for the current preset selection yet.";
         }
         isLoadingCachedResults.value = false;
         return;
@@ -1167,6 +1276,7 @@ export default defineComponent({
           : undefined;
         const flopKey = computeFlopKey(flop.boardText, treeOverrides);
         const resultKey = `${situationKey}-${flopKey}`;
+        const existingRecord = await getResearchRun(situationKey, flopKey);
 
         if (cachedMap.has(flopKey)) {
           const cachedValue = cachedMap.get(flopKey)?.value as PersistedBatchValue;
@@ -1208,6 +1318,7 @@ export default defineComponent({
             snapshot: cachedSnapshot,
             outcome: cachedValue.outcome,
             error: cachedValue.error,
+            hasSerializedGame: hasSerializedGame(cachedValue.serializedGame),
           });
           statusText.value = `CACHE ${index + 1}/${runFlops.length} ${flop.label}`;
           continue;
@@ -1216,7 +1327,7 @@ export default defineComponent({
         const snapshot = captureConfigSnapshot(config, board, treeOverrides);
 
         try {
-          const outcome = await runBatchSolve(snapshot, {
+          const solveResult: BatchSolveResult = await runBatchSolve(snapshot, {
             numThreads: runNumThreads,
             targetExploitabilityPercent: runTargetExploitability,
             maxIterations: runMaxIterations,
@@ -1232,29 +1343,17 @@ export default defineComponent({
             },
           });
 
+          const outcome = solveResult.outcome;
+
           outcome.rootSummary.actions = normalizeActions(outcome.rootSummary.actions);
-          let serializedGame: ArrayBuffer | undefined;
-
-          try {
-            serializedGame = await exportSolvedGame();
-          } catch (error) {
-            console.warn("Failed to persist serialized solver tree", error);
-          }
-
-          const batchResult = {
-            key: resultKey,
-            situationKey,
-            flopKey,
-            presetLabel: runPreset.label,
-            flop,
-            board,
-            snapshot,
-            outcome,
-            error: null,
-          };
-          upsertResult(batchResult);
+          const previousValue = existingRecord?.value as PersistedBatchValue | undefined;
+          const previousSerializedGame = toPersistedSerializedGame(
+            previousValue?.serializedGame
+          );
+          const serializedGame =
+            toPersistedSerializedGame(solveResult.serializedGame) || previousSerializedGame;
           refreshWorkerRuntimeText();
-          await putResearchRun({
+          const persisted = await putResearchRun({
             situationKey,
             flopKey,
             presetId: runPreset.id,
@@ -1270,6 +1369,37 @@ export default defineComponent({
               error: null,
             } satisfies PersistedBatchValue,
           });
+
+          const persistedRecord = persisted
+            ? await getResearchRun(situationKey, flopKey)
+            : undefined;
+          const persistedValue = persistedRecord?.value as PersistedBatchValue | undefined;
+          const persistedHasSerializedGame = hasSerializedGame(
+            persistedValue?.serializedGame
+          );
+
+          upsertResult({
+            key: resultKey,
+            situationKey,
+            flopKey,
+            presetLabel: runPreset.label,
+            flop,
+            board,
+            snapshot,
+            outcome,
+            error: null,
+            hasSerializedGame: persistedHasSerializedGame,
+          });
+
+          if (!persisted) {
+            statusText.value = `Solved ${flop.label}, but failed to write the research result to cache.`;
+          } else if (solveResult.serializedGame && !persistedHasSerializedGame) {
+            statusText.value = `Solved ${flop.label}, but the native result tree was not persisted.`;
+          } else if (solveResult.serializationError && !previousSerializedGame) {
+            statusText.value = `Solved ${flop.label}, but native tree export failed: ${solveResult.serializationError}`;
+          } else if (solveResult.serializationError && previousSerializedGame) {
+            statusText.value = `Solved ${flop.label}. Kept the previous native tree because the new export failed: ${solveResult.serializationError}`;
+          }
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           if (stopRequested.value && message === "Batch solve stopped.") {
@@ -1286,6 +1416,7 @@ export default defineComponent({
             snapshot,
             outcome: null,
             error: message,
+            hasSerializedGame: false,
           };
           upsertResult(batchResult);
           refreshWorkerRuntimeText();
@@ -1316,14 +1447,6 @@ export default defineComponent({
       activeRunPresetLabel.value = "";
     };
 
-    watch(
-      [situationKey, activeFlopDescriptors],
-      () => {
-        void syncResultsFromCache();
-      },
-      { immediate: true }
-    );
-
     return {
       presets,
       flops,
@@ -1338,6 +1461,7 @@ export default defineComponent({
       forceRecalculate,
       isRunning,
       isLoadingCachedResults,
+      isDeletingCache,
       results,
       aggregateFlopSummaries,
       invalidCustomBoards,
@@ -1358,6 +1482,9 @@ export default defineComponent({
       toggleFlop,
       selectAllFlops,
       clearResults,
+      deletePresetCache,
+      deleteFlopCache,
+      syncResultsFromCache,
       stopResearch,
       openResultPage,
       copyLlmPrompt,

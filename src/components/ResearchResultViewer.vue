@@ -187,6 +187,51 @@
           </div>
         </section>
 
+        <section class="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div class="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <div class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+                Cache Diagnostics
+              </div>
+              <div class="mt-2 text-sm text-slate-600">
+                Entrées Dexie trouvées pour ce `situationKey` + `flopKey`: {{ cacheDiagnostics.length }}
+              </div>
+            </div>
+            <button class="button-base button-blue" :disabled="isLoadingDiagnostics" @click="reloadDiagnostics">
+              {{ isLoadingDiagnostics ? "Refreshing Cache..." : "Refresh Cache Diagnostics" }}
+            </button>
+          </div>
+
+          <div v-if="cacheDiagnostics.length === 0" class="mt-4 text-sm text-slate-500">
+            Aucun enregistrement trouvé pour cette clé de flop.
+          </div>
+
+          <div v-else class="mt-4 space-y-3">
+            <div
+              v-for="entry in cacheDiagnostics"
+              :key="entry.id"
+              class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-700"
+            >
+              <div class="flex flex-wrap items-center gap-3">
+                <div class="font-semibold text-slate-900">Record #{{ entry.id }}</div>
+                <div class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]"
+                  :class="entry.hasSerializedGame ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700'">
+                  {{ entry.hasSerializedGame ? 'Serialized tree present' : 'No serialized tree' }}
+                </div>
+                <div v-if="entry.isPreferred" class="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">
+                  Selected by loader
+                </div>
+              </div>
+              <div class="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <div>Updated: {{ entry.updatedAtText }}</div>
+                <div>Bytes: {{ entry.serializedGameBytes }}</div>
+                <div>Error: {{ entry.errorText }}</div>
+                <div>Iterations: {{ entry.iterationText }}</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
       </template>
     </div>
   </div>
@@ -195,7 +240,7 @@
 <script lang="ts">
 import { computed, defineComponent, ref, watch } from "vue";
 import ResearchTreePreview from "./ResearchTreePreview.vue";
-import { getResearchRun, putResearchRun } from "../db";
+import { getResearchRun, getResearchRunMatches, putResearchRun } from "../db";
 import {
   buildResearchResultUrl,
   clearResearchResultSelection,
@@ -221,9 +266,19 @@ type PersistedResearchValue = {
   flop: FlopStudyItem;
   board: number[];
   snapshot?: SolverConfigSnapshot;
-  serializedGame?: ArrayBuffer;
+  serializedGame?: ArrayBuffer | Uint8Array;
   outcome: SolveOutcome | null;
   error: string | null;
+};
+
+type CacheDiagnosticEntry = {
+  id: number;
+  updatedAtText: string;
+  hasSerializedGame: boolean;
+  serializedGameBytes: number;
+  errorText: string;
+  iterationText: string;
+  isPreferred: boolean;
 };
 
 const emptyFlopPlayerSummary = (player: "oop" | "ip"): FlopPlayerSummary => ({
@@ -253,6 +308,16 @@ const formatAdaptive = (value: number) => {
 
 const toUint8Array = (value: ArrayBuffer | Uint8Array) =>
   value instanceof Uint8Array ? value : new Uint8Array(value);
+
+const hasSerializedGame = (value?: ArrayBuffer | Uint8Array) =>
+  value instanceof Uint8Array
+    ? value.byteLength > 0
+    : (value?.byteLength || 0) > 0;
+
+const cloneSerializedGame = (value: ArrayBuffer | Uint8Array) =>
+  value instanceof Uint8Array ? value.slice() : new Uint8Array(value).slice();
+
+const formatDateTime = (value: number) => new Date(value).toLocaleString();
 
 const applySnapshotToStore = (
   target: ReturnType<typeof useConfigStore> | ReturnType<typeof useSavedConfigStore>,
@@ -303,8 +368,51 @@ export default defineComponent({
     const progressText = ref("Loading persisted flop result...");
     const persistedValue = ref<PersistedResearchValue | null>(null);
     const persistedSnapshot = ref<SolverConfigSnapshot | null>(null);
+    const cacheDiagnostics = ref<CacheDiagnosticEntry[]>([]);
+    const isLoadingDiagnostics = ref(false);
 
     const selection = computed(() => store.selectedResearchResult);
+
+    const reloadDiagnostics = async () => {
+      if (!selection.value) {
+        cacheDiagnostics.value = [];
+        return;
+      }
+
+      isLoadingDiagnostics.value = true;
+      try {
+        const records = await getResearchRunMatches(
+          selection.value.situationKey,
+          selection.value.flopKey
+        );
+        const preferredRecord = await getResearchRun(
+          selection.value.situationKey,
+          selection.value.flopKey
+        );
+
+        cacheDiagnostics.value = records
+          .slice()
+          .sort((left, right) => right.updatedAt - left.updatedAt)
+          .map((record) => {
+            const value = record.value as PersistedResearchValue;
+            const bytes = value.serializedGame ? value.serializedGame.byteLength : 0;
+            return {
+              id: record.id || 0,
+              updatedAtText: formatDateTime(record.updatedAt),
+              hasSerializedGame: bytes > 0,
+              serializedGameBytes: bytes,
+              errorText: value.error || "-",
+              iterationText:
+                value.outcome?.currentIteration != null
+                  ? String(value.outcome.currentIteration)
+                  : "-",
+              isPreferred: record.id === preferredRecord?.id,
+            } satisfies CacheDiagnosticEntry;
+          });
+      } finally {
+        isLoadingDiagnostics.value = false;
+      }
+    };
 
     const getFlopPlayerSummary = (player: "oop" | "ip"): FlopPlayerSummary => {
       const summary = persistedValue.value?.outcome?.rootSummary.flopPlayerSummaries?.[player];
@@ -368,11 +476,13 @@ export default defineComponent({
 
         persistedValue.value = value;
         persistedSnapshot.value = snapshot;
-        progressText.value = value.serializedGame
+        progressText.value = hasSerializedGame(value.serializedGame)
           ? "Saved result tree is ready to open."
           : "Persisted summary loaded. Open the native interface only if needed.";
+        await reloadDiagnostics();
       } catch (error) {
         loadError.value = error instanceof Error ? error.message : String(error);
+        await reloadDiagnostics();
       } finally {
         isLoading.value = false;
       }
@@ -389,7 +499,7 @@ export default defineComponent({
         return;
       }
 
-      if (!existingValue.serializedGame && !allowReplay) {
+      if (!hasSerializedGame(existingValue.serializedGame) && !allowReplay) {
         loadError.value =
           "No serialized tree is stored for this run. Use the explicit rebuild action only if you want to recompute the native interface.";
         return;
@@ -397,7 +507,7 @@ export default defineComponent({
 
       isOpeningNative.value = true;
       loadError.value = "";
-      progressText.value = existingValue.serializedGame
+      progressText.value = hasSerializedGame(existingValue.serializedGame)
         ? "Loading saved result tree..."
         : "Rebuilding tree for the live Results interface...";
 
@@ -407,9 +517,11 @@ export default defineComponent({
         store.isSolverPaused = false;
         store.isSolverFinished = false;
 
-        if (existingValue.serializedGame) {
+        const currentSerializedGame = existingValue.serializedGame;
+
+        if (currentSerializedGame && currentSerializedGame.byteLength > 0) {
           await loadSerializedGame(
-            toUint8Array(existingValue.serializedGame),
+            toUint8Array(currentSerializedGame),
             resultViewerThreads
           );
           progressText.value = "Opening native Results interface...";
@@ -448,18 +560,27 @@ export default defineComponent({
 
           if (existingRecord) {
             try {
-              const serializedGame = await exportSolvedGame();
+              const serializedGame = cloneSerializedGame(await exportSolvedGame());
               const nextValue = {
                 ...existingValue,
                 snapshot: existingSnapshot,
                 serializedGame,
               } satisfies PersistedResearchValue;
-              await putResearchRun({
+              const persisted = await putResearchRun({
                 ...existingRecord,
                 updatedAt: Date.now(),
                 value: nextValue,
               });
-              persistedValue.value = nextValue;
+              const persistedRecord = persisted
+                ? await getResearchRun(existingRecord.situationKey, existingRecord.flopKey)
+                : undefined;
+              const confirmedValue = persistedRecord?.value as PersistedResearchValue | undefined;
+              persistedValue.value =
+                persisted && confirmedValue ? confirmedValue : nextValue;
+              if (!persisted || !hasSerializedGame(confirmedValue?.serializedGame)) {
+                progressText.value =
+                  "Native results opened, but the serialized tree could not be persisted.";
+              }
             } catch (error) {
               console.warn("Failed to backfill serialized solver tree", error);
             }
@@ -510,9 +631,12 @@ export default defineComponent({
       loadError,
       progressText,
       persistedValue,
+      cacheDiagnostics,
+      isLoadingDiagnostics,
       getFlopPlayerSummary,
       openNativeResults,
       rebuildNativeResults,
+      reloadDiagnostics,
       formatAdaptive,
       formatPercent,
       backToResearch,

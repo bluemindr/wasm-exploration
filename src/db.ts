@@ -31,6 +31,10 @@ export type ResearchRunRecord = {
   value: unknown;
 };
 
+type ResearchRunValue = {
+  serializedGame?: ArrayBuffer | Uint8Array;
+};
+
 class WASMPostflopDB extends Dexie {
   public ranges!: Table<DbItem | DbGroup, number>;
   public configurations!: Table<DbItem | DbGroup, number>;
@@ -69,6 +73,30 @@ class WASMPostflopDB extends Dexie {
 }
 
 const db = new WASMPostflopDB();
+
+const hasSerializedGame = (value: unknown) => {
+  const serializedGame = (value as ResearchRunValue | undefined)?.serializedGame;
+  if (!serializedGame) {
+    return false;
+  }
+
+  return serializedGame.byteLength > 0;
+};
+
+const selectPreferredResearchRun = (records: ResearchRunRecord[]) => {
+  if (records.length === 0) {
+    return undefined;
+  }
+
+  return [...records].sort((left, right) => {
+    const nativeDelta = Number(hasSerializedGame(right.value)) - Number(hasSerializedGame(left.value));
+    if (nativeDelta !== 0) {
+      return nativeDelta;
+    }
+
+    return right.updatedAt - left.updatedAt;
+  })[0];
+};
 
 const makeParent = (item: DbItem | DbGroup) => {
   if (item.name3 !== "") {
@@ -302,31 +330,89 @@ export const bulkAdd = async (store: string, items: (DbItem | DbGroup)[]) => {
 };
 
 export const getResearchRuns = async (situationKey: string) => {
-  return (await db.researchRuns
+  const records = (await db.researchRuns
     .where("situationKey")
     .equals(situationKey)
     .sortBy("updatedAt")) as ResearchRunRecord[];
+
+  const deduped = new Map<string, ResearchRunRecord>();
+  for (const record of records) {
+    const existing = deduped.get(record.flopKey);
+    deduped.set(
+      record.flopKey,
+      selectPreferredResearchRun(existing ? [existing, record] : [record]) as ResearchRunRecord
+    );
+  }
+
+  return Array.from(deduped.values()).sort((left, right) => left.updatedAt - right.updatedAt);
 };
 
 export const getResearchRun = async (situationKey: string, flopKey: string) => {
+  const records = (await db.researchRuns
+    .where("[situationKey+flopKey]")
+    .equals([situationKey, flopKey])
+    .toArray()) as ResearchRunRecord[];
+
+  return selectPreferredResearchRun(records);
+};
+
+export const getResearchRunMatches = async (situationKey: string, flopKey: string) => {
   return (await db.researchRuns
     .where("[situationKey+flopKey]")
     .equals([situationKey, flopKey])
-    .first()) as ResearchRunRecord | undefined;
+    .sortBy("updatedAt")) as ResearchRunRecord[];
+};
+
+export const deleteResearchRun = async (situationKey: string, flopKey: string) => {
+  try {
+    return (
+      (await db.researchRuns
+        .where("[situationKey+flopKey]")
+        .equals([situationKey, flopKey])
+        .delete()) >= 0
+    );
+  } catch {
+    return false;
+  }
 };
 
 export const putResearchRun = async (record: ResearchRunRecord) => {
   try {
     return await db.transaction("rw", db.researchRuns, async () => {
-      const existing = await db.researchRuns
+      const existingRecords = (await db.researchRuns
         .where("[situationKey+flopKey]")
         .equals([record.situationKey, record.flopKey])
-        .first();
+        .toArray()) as ResearchRunRecord[];
 
-      if (existing?.id != null) {
-        await db.researchRuns.update(existing.id, record);
+      const preferredExisting = selectPreferredResearchRun(existingRecords);
+      const preservedSerializedGame = hasSerializedGame((record.value as ResearchRunValue | undefined))
+        ? undefined
+        : (preferredExisting?.value as ResearchRunValue | undefined)?.serializedGame;
+
+      const nextRecord = preservedSerializedGame
+        ? {
+            ...record,
+            value: {
+              ...(record.value as Record<string, unknown>),
+              serializedGame: preservedSerializedGame,
+            },
+          }
+        : record;
+
+      if (preferredExisting?.id != null) {
+        await db.researchRuns.update(preferredExisting.id, nextRecord);
       } else {
-        await db.researchRuns.add(record);
+        await db.researchRuns.add(nextRecord);
+      }
+
+      const duplicateIds = existingRecords
+        .map((existing) => existing.id)
+        .filter(
+          (id): id is number => id != null && id !== preferredExisting?.id
+        );
+
+      if (duplicateIds.length > 0) {
+        await db.researchRuns.bulkDelete(duplicateIds);
       }
 
       return true;

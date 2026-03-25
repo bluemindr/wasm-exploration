@@ -95,6 +95,12 @@ export type SolveOutcome = {
   rootSummary: RootSummary;
 };
 
+export type BatchSolveResult = {
+  outcome: SolveOutcome;
+  serializedGame?: Uint8Array;
+  serializationError: string | null;
+};
+
 export type ReplaySolveProgress = {
   stage: "building" | "allocating" | "iterating" | "finalizing" | "done";
   currentIteration: number;
@@ -733,7 +739,7 @@ const buildDecisionPreview = async (
 export const runBatchSolve = async (
   snapshot: SolverConfigSnapshot,
   options: RunBatchSolveOptions
-): Promise<SolveOutcome> => {
+): Promise<BatchSolveResult> => {
   options.onProgress?.({
     stage: "building",
     flopIndex: options.flopIndex,
@@ -818,6 +824,19 @@ export const runBatchSolve = async (
     exploitability,
   });
 
+  let serializedGame: Uint8Array | undefined;
+  let serializationError: string | null = null;
+
+  try {
+    const exportedSerializedGame = await exportSolvedGame();
+    serializedGame = new Uint8Array(exportedSerializedGame).slice();
+    if (serializedGame.byteLength === 0) {
+      throw new Error("Serialized solver tree export returned an empty buffer.");
+    }
+  } catch (error) {
+    serializationError = error instanceof Error ? error.message : String(error);
+  }
+
   await solver.finalize();
 
   const elapsedTimeMs = performance.now() - startedAt;
@@ -834,16 +853,20 @@ export const runBatchSolve = async (
   });
 
   return {
-    currentIteration,
-    exploitability,
-    elapsedTimeMs,
-    memoryUsage: buildStats.memoryUsage,
-    memoryUsageCompressed: buildStats.memoryUsageCompressed,
-    compressionEnabled,
-    rootSummary: {
-      ...rootSummary,
-      boardText: boardToText(snapshot.board).join(" "),
+    outcome: {
+      currentIteration,
+      exploitability,
+      elapsedTimeMs,
+      memoryUsage: buildStats.memoryUsage,
+      memoryUsageCompressed: buildStats.memoryUsageCompressed,
+      compressionEnabled,
+      rootSummary: {
+        ...rootSummary,
+        boardText: boardToText(snapshot.board).join(" "),
+      },
     },
+    serializedGame,
+    serializationError,
   };
 };
 
